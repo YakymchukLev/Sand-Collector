@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5771477254044221746}
   - component: {fileID: 6331886734895379803}
   - component: {fileID: 1497145545973197386}
+  - component: {fileID: 2726971867058563577}
   - component: {fileID: 504872006041869846}
   m_Layer: 6
   m_Name: Bucket
@@ -119,7 +120,7 @@ BoxCollider2D:
   m_CallbackLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
@@ -135,6 +136,33 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 11.120016, y: 12.368924}
   m_EdgeRadius: 0
+--- !u!50 &2726971867058563577
+Rigidbody2D:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5228518425862896435}
+  m_BodyType: 1
+  m_Simulated: 1
+  m_UseFullKinematicContacts: 0
+  m_UseAutoMass: 0
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_GravityScale: 0
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
+  m_Constraints: 0
 --- !u!114 &504872006041869846
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -150,3 +178,6 @@ MonoBehaviour:
   targetColorID: 0
   capacity: 20
   speed: 2
+  destroyDelay: 1.5
+  blueBucketSprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
+  yellowBucketSprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}

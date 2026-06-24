@@ -6,7 +6,12 @@ public class SandCollector : MonoBehaviour
     public int width = 100;
     public int height = 100;
 
-    public SandCollector sandCollector;
+    [HideInInspector]
+    public Bucket currentBucket; // Зберігаємо для зворотної сумісності
+
+    [Header("Шлюз")]
+    [Range(2, 100)]
+    public int gateWidth = 10; // Ширина шлюзу. Задайте 100, щоб пісок висипався по всій ширині!
     
     [Header("Візуалізація")]
     public SpriteRenderer displayRenderer;
@@ -15,11 +20,19 @@ public class SandCollector : MonoBehaviour
     private Texture2D texture;
     private Color32[] colorBuffer;
 
-    // Ідентифікатори типів клітинок
+    public static SandCollector Instance { get; private set; }
+    public static int totalBlueSandCount { get; private set; }
+    public static int totalYellowSandCount { get; private set; }
+
     private const int EMPTY = 0;
     private const int BLUE_SAND = 1;
     private const int YELLOW_SAND = 2;
     private const int WALL = 3; // Новий тип для бортиків
+
+    void Awake()
+    {
+        Instance = this;
+    }
 
     void Start()
     {
@@ -38,6 +51,8 @@ public class SandCollector : MonoBehaviour
         UpdateSandPhysics();
         DrawGrid();
     }
+
+    // Більше не використовуємо тригери, оскільки відра детектуються по всій ширині динамічно
 
     // Створюємо бортики та засипаємо пісок всередину
     void BuildBordersAndSand()
@@ -68,14 +83,18 @@ public class SandCollector : MonoBehaviour
                 // Нижні бортики (дно рами)
                 if (y >= bottomY && y < bottomY + wallThickness)
                 {
-                    // Залишаємо отвір по центру (шлюз) завширшки 10 пікселів, де стіни НЕ буде
-                    if (x < width / 2 - 5 || x > width / 2 + 5)
+                    // Залишаємо отвір по центру (шлюз) завширшки gateWidth пікселів, де стіни НЕ буде
+                    int halfGate = gateWidth / 2;
+                    if (x < width / 2 - halfGate || x > width / 2 + halfGate)
                     {
                         grid[x, y] = WALL;
                     }
                 }
             }
         }
+
+        totalBlueSandCount = 0;
+        totalYellowSandCount = 0;
 
         // 3. Генеруємо пісок ТІЛЬКИ всередині бортиків
         for (int x = wallThickness; x < width - wallThickness; x++)
@@ -85,10 +104,12 @@ public class SandCollector : MonoBehaviour
                 if (y > 40 && y < 70)
                 {
                     grid[x, y] = BLUE_SAND;
+                    totalBlueSandCount++;
                 }
                 else if (y >= 70 && y < 90)
                 {
                     grid[x, y] = YELLOW_SAND;
+                    totalYellowSandCount++;
                 }
             }
         }
@@ -111,15 +132,28 @@ public class SandCollector : MonoBehaviour
                 // -------------------------------------------------------------
                 if (y == 10)
                 {
-                    // Перевіряємо, чи є зараз відерце в зоні тригера
-                    if (sandCollector != null && sandCollector.currentBucket != null)
+                    // Шукаємо відерце безпосередньо під цим стовпчиком x
+                    Bucket bucketAtPos = GetBucketAtGridX(x);
+                    if (bucketAtPos != null)
                     {
-                        // Відерце є! Передаємо колір піску у відерце
-                        sandCollector.currentBucket.AddSand(currentCell);
+                        // Передаємо колір піску у відерце. Якщо колір співпав, воно поверне true
+                        if (bucketAtPos.AddSand(currentCell))
+                        {
+                            // Тільки якщо колір співпав, видаляємо піщинку з сітки (вона засипалася у відерце)
+                            grid[x, y] = EMPTY;
 
-                        // Видаляємо піщинку з масиву (вона висипалася)
-                        grid[x, y] = EMPTY;
-                        continue;
+                            // Якщо на полі більше не залишилося піску цього кольору, примусово заповнюємо відерце до 100%
+                            if (!IsAnySandOfColorLeft(currentCell))
+                            {
+                                bucketAtPos.ForceFull();
+                            }
+                            continue;
+                        }
+                        else
+                        {
+                            // Якщо колір не співпав, шлюз залишається закритим для цієї піщинки (вона не висипається)
+                            continue;
+                        }
                     }
                     else
                     {
@@ -139,17 +173,36 @@ public class SandCollector : MonoBehaviour
                     grid[x, y - 1] = currentCell;
                     grid[x, y] = EMPTY;
                 }
-                // 2. Осипання вниз-ліворуч
-                else if (x > 0 && grid[x - 1, y - 1] == EMPTY)
+                // 2. Рандомізоване осипання вбік (ліворуч або праворуч)
+                else
                 {
-                    grid[x - 1, y - 1] = currentCell;
-                    grid[x, y] = EMPTY;
-                }
-                // 3. Осипання вниз-праворуч
-                else if (x < width - 1 && grid[x + 1, y - 1] == EMPTY)
-                {
-                    grid[x + 1, y - 1] = currentCell;
-                    grid[x, y] = EMPTY;
+                    bool checkLeftFirst = Random.value < 0.5f;
+                    if (checkLeftFirst)
+                    {
+                        if (x > 0 && grid[x - 1, y - 1] == EMPTY)
+                        {
+                            grid[x - 1, y - 1] = currentCell;
+                            grid[x, y] = EMPTY;
+                        }
+                        else if (x < width - 1 && grid[x + 1, y - 1] == EMPTY)
+                        {
+                            grid[x + 1, y - 1] = currentCell;
+                            grid[x, y] = EMPTY;
+                        }
+                    }
+                    else
+                    {
+                        if (x < width - 1 && grid[x + 1, y - 1] == EMPTY)
+                        {
+                            grid[x + 1, y - 1] = currentCell;
+                            grid[x, y] = EMPTY;
+                        }
+                        else if (x > 0 && grid[x - 1, y - 1] == EMPTY)
+                        {
+                            grid[x - 1, y - 1] = currentCell;
+                            grid[x, y] = EMPTY;
+                        }
+                    }
                 }
             }
         }
@@ -184,5 +237,53 @@ public class SandCollector : MonoBehaviour
 
         texture.SetPixels32(colorBuffer);
         texture.Apply();
+    }
+
+    Bucket GetBucketAtGridX(int x)
+    {
+        // Отримуємо межі спрайту у світових координатах
+        Bounds bounds = displayRenderer.bounds;
+        float spriteWorldWidth = bounds.size.x;
+
+        // Рахуємо точну світову координату X для цього стовпчика сітки
+        // x / (float)width дає значення від 0.0 до 1.0
+        float worldX = bounds.min.x + ((float)x / width) * spriteWorldWidth;
+
+        // Шукаємо відерце під цією світовою координатою X
+        Bucket[] buckets = FindObjectsOfType<Bucket>();
+        foreach (Bucket bucket in buckets)
+        {
+            Collider2D bucketCollider = bucket.GetComponent<Collider2D>();
+            if (bucketCollider != null)
+            {
+                if (worldX >= bucketCollider.bounds.min.x && worldX <= bucketCollider.bounds.max.x)
+                {
+                    return bucket;
+                }
+            }
+            else
+            {
+                if (Mathf.Abs(bucket.transform.position.x - worldX) < 0.5f)
+                {
+                    return bucket;
+                }
+            }
+        }
+        return null;
+    }
+
+    public bool IsAnySandOfColorLeft(int colorID)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (grid[x, y] == colorID)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
