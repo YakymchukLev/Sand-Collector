@@ -7,13 +7,19 @@ public class ConveyorManager : MonoBehaviour
     public float spawnInterval = 3f; // Наскільки часто виїжджають відерця
     public float minDistanceBetweenBuckets = 4f; // Мінімальна відстань між відерцями
 
+    [Header("Автоматичний спавн")]
+    public bool autoSpawn = false; // Якщо true, відерця спавняться самі. Якщо false - тільки при натисканні.
+
     void Start()
     {
-        // Запускаємо регулярний спавн відерець
-        InvokeRepeating(nameof(SpawnBucket), 0f, spawnInterval);
+        if (autoSpawn)
+        {
+            // Запускаємо регулярний спавн відерець
+            InvokeRepeating(nameof(SpawnBucket), 0f, spawnInterval);
+        }
     }
 
-    void SpawnBucket()
+    public void SpawnBucket()
     {
         // Перевірка кількості відер на конвеєрі
         Bucket[] activeBuckets = FindObjectsOfType<Bucket>();

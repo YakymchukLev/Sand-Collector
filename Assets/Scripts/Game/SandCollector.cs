@@ -20,6 +20,10 @@ public class SandCollector : MonoBehaviour
     private Texture2D texture;
     private Color32[] colorBuffer;
 
+    private int currentBlueSandCount;
+    private int currentYellowSandCount;
+    private bool isGameOver = false;
+
     public static SandCollector Instance { get; private set; }
     public static int totalBlueSandCount { get; private set; }
     public static int totalYellowSandCount { get; private set; }
@@ -113,6 +117,10 @@ public class SandCollector : MonoBehaviour
                 }
             }
         }
+
+        currentBlueSandCount = totalBlueSandCount;
+        currentYellowSandCount = totalYellowSandCount;
+        isGameOver = false;
     }
 
     void UpdateSandPhysics()
@@ -142,11 +150,23 @@ public class SandCollector : MonoBehaviour
                             // Тільки якщо колір співпав, видаляємо піщинку з сітки (вона засипалася у відерце)
                             grid[x, y] = EMPTY;
 
+                            // Зменшуємо лічильник відповідного піску
+                            if (currentCell == BLUE_SAND)
+                            {
+                                currentBlueSandCount--;
+                            }
+                            else if (currentCell == YELLOW_SAND)
+                            {
+                                currentYellowSandCount--;
+                            }
+
                             // Якщо на полі більше не залишилося піску цього кольору, примусово заповнюємо відерце до 100%
                             if (!IsAnySandOfColorLeft(currentCell))
                             {
                                 bucketAtPos.ForceFull();
                             }
+
+                            CheckRemainingSand();
                             continue;
                         }
                         else
@@ -274,16 +294,23 @@ public class SandCollector : MonoBehaviour
 
     public bool IsAnySandOfColorLeft(int colorID)
     {
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                if (grid[x, y] == colorID)
-                {
-                    return true;
-                }
-            }
-        }
+        if (colorID == BLUE_SAND) return currentBlueSandCount > 0;
+        if (colorID == YELLOW_SAND) return currentYellowSandCount > 0;
         return false;
+    }
+
+    private void CheckRemainingSand()
+    {
+        if (!isGameOver && currentBlueSandCount <= 0 && currentYellowSandCount <= 0)
+        {
+            isGameOver = true;
+            Debug.Log("Весь пісок зібрано! Повертаємось у меню за 2 секунди...");
+            Invoke(nameof(LoadMenuScene), 2f);
+        }
+    }
+
+    private void LoadMenuScene()
+    {
+        UnityEngine.SceneManagement.SceneManager.LoadScene("Menu");
     }
 }
