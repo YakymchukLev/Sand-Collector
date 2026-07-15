@@ -2,15 +2,18 @@ using UnityEngine;
 
 public class Bucket : MonoBehaviour
 {
-    public int targetColorID; // Який колір має збирати (1 - синій, 2 - жовтий)
-    public int capacity = 20; // Скільки піщинок вміщує
-    public float speed = 2f;  // Швидкість руху конвеєра
+    public int targetColorID; // Який колір має збирати: 1=синій, 2=жовтий, 4=червоний, 5=зелений, 6=оранжевий
+    public int capacity = 20;
+    public float speed = 2f;
 
-    public float destroyDelay = 1.5f; // Затримка перед видаленням відерця в секундах
+    public float destroyDelay = 1.5f;
 
     [Header("Спрайти відерця")]
     public Sprite blueBucketSprite;
     public Sprite yellowBucketSprite;
+    public Sprite redBucketSprite;
+    public Sprite greenBucketSprite;
+    public Sprite orangeBucketSprite;
 
     private int currentSandCount = 0;
     private Vector3 startPosition;
@@ -49,14 +52,15 @@ public class Bucket : MonoBehaviour
     {
         if (SandCollector.Instance == null) return;
 
-        if (targetColorID == 1) // Синій
+        switch (targetColorID)
         {
-            capacity = Mathf.CeilToInt(SandCollector.totalBlueSandCount / 3f);
+            case 1: capacity = Mathf.CeilToInt(SandCollector.totalBlueSandCount   / 3f); break;
+            case 2: capacity = Mathf.CeilToInt(SandCollector.totalYellowSandCount / 3f); break;
+            case 4: capacity = Mathf.CeilToInt(SandCollector.totalRedSandCount    / 3f); break;
+            case 5: capacity = Mathf.CeilToInt(SandCollector.totalGreenSandCount  / 3f); break;
+            case 6: capacity = Mathf.CeilToInt(SandCollector.totalOrangeSandCount / 3f); break;
         }
-        else if (targetColorID == 2) // Жовтий
-        {
-            capacity = Mathf.CeilToInt(SandCollector.totalYellowSandCount / 3f);
-        }
+        if (capacity < 1) capacity = 1;
     }
 
     public void ForceFull()
@@ -70,19 +74,17 @@ public class Bucket : MonoBehaviour
     public void UpdateBucketVisuals()
     {
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
-        if (sr != null)
-        {
-            // Скидаємо колір-маску на білий, щоб не було зеленого відтінку від перекриття
-            sr.color = Color.white;
+        if (sr == null) return;
 
-            if (targetColorID == 1)
-            {
-                sr.sprite = blueBucketSprite;
-            }
-            else if (targetColorID == 2)
-            {
-                sr.sprite = yellowBucketSprite;
-            }
+        sr.color = Color.white;
+
+        switch (targetColorID)
+        {
+            case 1: sr.sprite = blueBucketSprite;   break;
+            case 2: sr.sprite = yellowBucketSprite; break;
+            case 4: sr.sprite = redBucketSprite    != null ? redBucketSprite    : blueBucketSprite; sr.color = new Color32(220, 40,  40,  255); break;
+            case 5: sr.sprite = greenBucketSprite  != null ? greenBucketSprite  : blueBucketSprite; sr.color = new Color32(40,  200, 60,  255); break;
+            case 6: sr.sprite = orangeBucketSprite != null ? orangeBucketSprite : blueBucketSprite; sr.color = new Color32(255, 140, 20,  255); break;
         }
     }
 

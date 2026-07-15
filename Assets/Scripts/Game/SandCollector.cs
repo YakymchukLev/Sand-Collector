@@ -20,34 +20,68 @@ public class SandCollector : MonoBehaviour
     private Texture2D texture;
     private Color32[] colorBuffer;
 
+    // Лічильники для кожного кольору
     private int currentBlueSandCount;
     private int currentYellowSandCount;
+    private int currentRedSandCount;
+    private int currentGreenSandCount;
+    private int currentOrangeSandCount;
+
     private bool isGameOver = false;
 
     public static SandCollector Instance { get; private set; }
-    public static int totalBlueSandCount { get; private set; }
-    public static int totalYellowSandCount { get; private set; }
 
-    private const int EMPTY = 0;
-    private const int BLUE_SAND = 1;
+    // Загальна кількість кожного кольору (для відер)
+    public static int totalBlueSandCount   { get; private set; }
+    public static int totalYellowSandCount { get; private set; }
+    public static int totalRedSandCount    { get; private set; }
+    public static int totalGreenSandCount  { get; private set; }
+    public static int totalOrangeSandCount { get; private set; }
+
+    // Типи клітинок
+    private const int EMPTY       = 0;
+    private const int BLUE_SAND   = 1;
     private const int YELLOW_SAND = 2;
-    private const int WALL = 3; // Новий тип для бортиків
+    private const int WALL        = 3;
+    private const int RED_SAND    = 4;
+    private const int GREEN_SAND  = 5;
+    private const int ORANGE_SAND = 6;
+
+    // Кольори для рендерингу
+    private static readonly Color32 COLOR_EMPTY  = new Color32(0, 0, 0, 0);
+    private static readonly Color32 COLOR_BLUE   = new Color32(30,  100, 255, 255);
+    private static readonly Color32 COLOR_YELLOW = new Color32(255, 220,  30, 255);
+    private static readonly Color32 COLOR_WALL   = new Color32(100, 100, 100, 255);
+    private static readonly Color32 COLOR_RED    = new Color32(220,  40,  40, 255);
+    private static readonly Color32 COLOR_GREEN  = new Color32(40,  200,  60, 255);
+    private static readonly Color32 COLOR_ORANGE = new Color32(255, 140,  20, 255);
 
     void Awake()
     {
         Instance = this;
+
+        // Ініціалізуємо сітку тут, а не в Start(),
+        // бо LevelManager.Start() може викликати LoadLevelFromTexture() раніше нашого Start()
+        grid = new int[width, height];
+        texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        texture.filterMode = FilterMode.Point;
+        colorBuffer = new Color32[width * height];
     }
 
     void Start()
     {
-        grid = new int[width, height];
-        texture = new Texture2D(width, height);
-        texture.filterMode = FilterMode.Point;
         displayRenderer.sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f));
-        
-        colorBuffer = new Color32[width * height];
 
-        BuildBordersAndSand();
+        // Якщо є LevelManager — просимо його завантажити поточний рівень
+        // Якщо немає — будуємо стандартний рівень
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.LoadCurrentLevel();
+        }
+        else
+        {
+            BuildBordersAndSand();
+        }
     }
 
     void Update()
@@ -56,178 +90,118 @@ public class SandCollector : MonoBehaviour
         DrawGrid();
     }
 
-    // Більше не використовуємо тригери, оскільки відра детектуються по всій ширині динамічно
-
-    // Створюємо бортики та засипаємо пісок всередину
+    // Створюємо бортики та засипаємо пісок всередину (стандартний рівень без картинки)
     void BuildBordersAndSand()
     {
-        // 1. Спочатку робимо все пустим
         for (int x = 0; x < width; x++)
-        {
             for (int y = 0; y < height; y++)
-            {
                 grid[x, y] = EMPTY;
-            }
-        }
 
-        // 2. Будуємо бортики (стіни)
-        int wallThickness = 4; // Товщина бортика в пікселях
-        int bottomY = 10;      // На якій висоті від низу буде дно коробки
+        int wallThickness = 4;
+        int bottomY = 10;
 
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
-                // Лівий бортик
                 if (x < wallThickness) grid[x, y] = WALL;
-                
-                // Правий бортик
                 if (x >= width - wallThickness) grid[x, y] = WALL;
 
-                // Нижні бортики (дно рами)
                 if (y >= bottomY && y < bottomY + wallThickness)
                 {
-                    // Залишаємо отвір по центру (шлюз) завширшки gateWidth пікселів, де стіни НЕ буде
                     int halfGate = gateWidth / 2;
                     if (x < width / 2 - halfGate || x > width / 2 + halfGate)
-                    {
                         grid[x, y] = WALL;
-                    }
                 }
             }
         }
 
-        totalBlueSandCount = 0;
-        totalYellowSandCount = 0;
+        ResetAllCounters();
 
-        // 3. Генеруємо пісок ТІЛЬКИ всередині бортиків
         for (int x = wallThickness; x < width - wallThickness; x++)
         {
             for (int y = bottomY + wallThickness; y < height; y++)
             {
-                if (y > 40 && y < 70)
-                {
-                    grid[x, y] = BLUE_SAND;
-                    totalBlueSandCount++;
-                }
-                else if (y >= 70 && y < 90)
-                {
-                    grid[x, y] = YELLOW_SAND;
-                    totalYellowSandCount++;
-                }
+                if (y > 40 && y < 55)       { grid[x, y] = BLUE_SAND;   totalBlueSandCount++;   currentBlueSandCount++; }
+                else if (y >= 55 && y < 70) { grid[x, y] = YELLOW_SAND; totalYellowSandCount++; currentYellowSandCount++; }
+                else if (y >= 70 && y < 80) { grid[x, y] = RED_SAND;    totalRedSandCount++;    currentRedSandCount++; }
+                else if (y >= 80 && y < 88) { grid[x, y] = GREEN_SAND;  totalGreenSandCount++;  currentGreenSandCount++; }
+                else if (y >= 88 && y < 95) { grid[x, y] = ORANGE_SAND; totalOrangeSandCount++; currentOrangeSandCount++; }
             }
         }
 
-        currentBlueSandCount = totalBlueSandCount;
-        currentYellowSandCount = totalYellowSandCount;
         isGameOver = false;
     }
 
     void UpdateSandPhysics()
-{
-    // Проходимо сітку знизу вгору
-    for (int y = 1; y < height; y++)
     {
-        for (int x = 0; x < width; x++)
+        // Проходимо сітку знизу вгору
+        for (int y = 1; y < height; y++)
         {
-            int currentCell = grid[x, y];
-
-            // Працюємо тільки з синім або жовтим піском
-            if (currentCell == BLUE_SAND || currentCell == YELLOW_SAND)
+            for (int x = 0; x < width; x++)
             {
-                // -------------------------------------------------------------
+                int currentCell = grid[x, y];
+
+                // Працюємо з будь-яким кольором піску
+                if (!IsSand(currentCell)) continue;
+
                 // ЛОГІКА РОБОТИ КЛАПАНА/ШЛЮЗУ (y == 10)
-                // -------------------------------------------------------------
                 if (y == 10)
                 {
-                    // Шукаємо відерце безпосередньо під цим стовпчиком x
                     Bucket bucketAtPos = GetBucketAtGridX(x);
                     if (bucketAtPos != null)
                     {
-                        // Передаємо колір піску у відерце. Якщо колір співпав, воно поверне true
                         if (bucketAtPos.AddSand(currentCell))
                         {
-                            // Тільки якщо колір співпав, видаляємо піщинку з сітки (вона засипалася у відерце)
                             grid[x, y] = EMPTY;
+                            DecrementSandCount(currentCell);
 
-                            // Зменшуємо лічильник відповідного піску
-                            if (currentCell == BLUE_SAND)
-                            {
-                                currentBlueSandCount--;
-                            }
-                            else if (currentCell == YELLOW_SAND)
-                            {
-                                currentYellowSandCount--;
-                            }
-
-                            // Якщо на полі більше не залишилося піску цього кольору, примусово заповнюємо відерце до 100%
                             if (!IsAnySandOfColorLeft(currentCell))
-                            {
                                 bucketAtPos.ForceFull();
-                            }
 
                             CheckRemainingSand();
                             continue;
                         }
                         else
                         {
-                            // Якщо колір не співпав, шлюз залишається закритим для цієї піщинки (вона не висипається)
-                            continue;
+                            continue; // Колір не співпав — шлюз закритий
                         }
                     }
                     else
                     {
-                        // ВІДЕРЦЯ НЕМАЄ! Шлюз закритий.
-                        // Ми просто пропускаємо рух цієї піщинки. Вона залишається на місці (y = 10)
-                        // і не пускає верхній пісок вивалитися назовні.
-                        continue; 
+                        continue; // Відерця немає — шлюз закритий
                     }
                 }
 
-                // -------------------------------------------------------------
-                // СТАНДАРТНИЙ РУХ ПІСКУ ВСЕРЕДИНІ РАМИ
-                // -------------------------------------------------------------
+                // СТАНДАРТНИЙ РУХ ПІСКУ
                 // 1. Рух прямо вниз
                 if (grid[x, y - 1] == EMPTY)
                 {
                     grid[x, y - 1] = currentCell;
                     grid[x, y] = EMPTY;
                 }
-                // 2. Рандомізоване осипання вбік (ліворуч або праворуч)
+                // 2. Рандомізоване осипання вбік
                 else
                 {
                     bool checkLeftFirst = Random.value < 0.5f;
                     if (checkLeftFirst)
                     {
                         if (x > 0 && grid[x - 1, y - 1] == EMPTY)
-                        {
-                            grid[x - 1, y - 1] = currentCell;
-                            grid[x, y] = EMPTY;
-                        }
+                        { grid[x - 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
                         else if (x < width - 1 && grid[x + 1, y - 1] == EMPTY)
-                        {
-                            grid[x + 1, y - 1] = currentCell;
-                            grid[x, y] = EMPTY;
-                        }
+                        { grid[x + 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
                     }
                     else
                     {
                         if (x < width - 1 && grid[x + 1, y - 1] == EMPTY)
-                        {
-                            grid[x + 1, y - 1] = currentCell;
-                            grid[x, y] = EMPTY;
-                        }
+                        { grid[x + 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
                         else if (x > 0 && grid[x - 1, y - 1] == EMPTY)
-                        {
-                            grid[x - 1, y - 1] = currentCell;
-                            grid[x, y] = EMPTY;
-                        }
+                        { grid[x - 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
                     }
                 }
             }
         }
     }
-}
 
     void DrawGrid()
     {
@@ -236,21 +210,15 @@ public class SandCollector : MonoBehaviour
             for (int x = 0; x < width; x++)
             {
                 int pixelIndex = x + y * width;
-                
                 switch (grid[x, y])
                 {
-                    case EMPTY:
-                        colorBuffer[pixelIndex] = Color.clear; // Прозоре тло
-                        break;
-                    case BLUE_SAND:
-                        colorBuffer[pixelIndex] = Color.blue;
-                        break;
-                    case YELLOW_SAND:
-                        colorBuffer[pixelIndex] = Color.yellow;
-                        break;
-                    case WALL:
-                        colorBuffer[pixelIndex] = Color.gray; // Бортики будуть сірими
-                        break;
+                    case EMPTY:       colorBuffer[pixelIndex] = COLOR_EMPTY;  break;
+                    case BLUE_SAND:   colorBuffer[pixelIndex] = COLOR_BLUE;   break;
+                    case YELLOW_SAND: colorBuffer[pixelIndex] = COLOR_YELLOW; break;
+                    case WALL:        colorBuffer[pixelIndex] = COLOR_WALL;   break;
+                    case RED_SAND:    colorBuffer[pixelIndex] = COLOR_RED;    break;
+                    case GREEN_SAND:  colorBuffer[pixelIndex] = COLOR_GREEN;  break;
+                    case ORANGE_SAND: colorBuffer[pixelIndex] = COLOR_ORANGE; break;
                 }
             }
         }
@@ -261,15 +229,10 @@ public class SandCollector : MonoBehaviour
 
     Bucket GetBucketAtGridX(int x)
     {
-        // Отримуємо межі спрайту у світових координатах
         Bounds bounds = displayRenderer.bounds;
         float spriteWorldWidth = bounds.size.x;
-
-        // Рахуємо точну світову координату X для цього стовпчика сітки
-        // x / (float)width дає значення від 0.0 до 1.0
         float worldX = bounds.min.x + ((float)x / width) * spriteWorldWidth;
 
-        // Шукаємо відерце під цією світовою координатою X
         Bucket[] buckets = FindObjectsOfType<Bucket>();
         foreach (Bucket bucket in buckets)
         {
@@ -277,40 +240,185 @@ public class SandCollector : MonoBehaviour
             if (bucketCollider != null)
             {
                 if (worldX >= bucketCollider.bounds.min.x && worldX <= bucketCollider.bounds.max.x)
-                {
                     return bucket;
-                }
             }
             else
             {
                 if (Mathf.Abs(bucket.transform.position.x - worldX) < 0.5f)
-                {
                     return bucket;
-                }
             }
         }
         return null;
     }
 
+    // --- Допоміжні методи ---
+
+    /// <summary>Чи є ця клітинка піском (будь-якого кольору)?</summary>
+    private bool IsSand(int cellType)
+    {
+        return cellType == BLUE_SAND   ||
+               cellType == YELLOW_SAND ||
+               cellType == RED_SAND    ||
+               cellType == GREEN_SAND  ||
+               cellType == ORANGE_SAND;
+    }
+
+    private void DecrementSandCount(int colorID)
+    {
+        switch (colorID)
+        {
+            case BLUE_SAND:   currentBlueSandCount--;   break;
+            case YELLOW_SAND: currentYellowSandCount--; break;
+            case RED_SAND:    currentRedSandCount--;    break;
+            case GREEN_SAND:  currentGreenSandCount--;  break;
+            case ORANGE_SAND: currentOrangeSandCount--; break;
+        }
+    }
+
     public bool IsAnySandOfColorLeft(int colorID)
     {
-        if (colorID == BLUE_SAND) return currentBlueSandCount > 0;
-        if (colorID == YELLOW_SAND) return currentYellowSandCount > 0;
-        return false;
+        switch (colorID)
+        {
+            case BLUE_SAND:   return currentBlueSandCount   > 0;
+            case YELLOW_SAND: return currentYellowSandCount > 0;
+            case RED_SAND:    return currentRedSandCount    > 0;
+            case GREEN_SAND:  return currentGreenSandCount  > 0;
+            case ORANGE_SAND: return currentOrangeSandCount > 0;
+            default: return false;
+        }
     }
 
     private void CheckRemainingSand()
     {
-        if (!isGameOver && currentBlueSandCount <= 0 && currentYellowSandCount <= 0)
+        if (!isGameOver &&
+            currentBlueSandCount   <= 0 &&
+            currentYellowSandCount <= 0 &&
+            currentRedSandCount    <= 0 &&
+            currentGreenSandCount  <= 0 &&
+            currentOrangeSandCount <= 0)
         {
             isGameOver = true;
-            Debug.Log("Весь пісок зібрано! Повертаємось у меню за 2 секунди...");
-            Invoke(nameof(LoadMenuScene), 2f);
+            Debug.Log("Весь пісок зібрано! Переходимо до наступного рівня...");
+            Invoke(nameof(GoToNextLevel), 2f);
         }
     }
 
-    private void LoadMenuScene()
+    private void GoToNextLevel()
     {
-        UnityEngine.SceneManagement.SceneManager.LoadScene("Menu");
+        if (LevelManager.Instance != null)
+            LevelManager.Instance.LoadNextLevel();
+        else
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Menu");
+    }
+
+    private void ResetAllCounters()
+    {
+        totalBlueSandCount   = 0; currentBlueSandCount   = 0;
+        totalYellowSandCount = 0; currentYellowSandCount = 0;
+        totalRedSandCount    = 0; currentRedSandCount    = 0;
+        totalGreenSandCount  = 0; currentGreenSandCount  = 0;
+        totalOrangeSandCount = 0; currentOrangeSandCount = 0;
+    }
+
+    // ===================================================================
+    // ЗАВАНТАЖЕННЯ РІВНЯ З ТЕКСТУРИ
+    // ===================================================================
+
+    /// <summary>
+    /// Завантажує рівень з текстури. Викликається LevelManager.
+    /// Кольори пікселів:
+    ///   Чорний  (#000000) → Стіна
+    ///   Синій            → Синій пісок
+    ///   Жовтий           → Жовтий пісок
+    ///   Червоний         → Червоний пісок
+    ///   Зелений          → Зелений пісок
+    ///   Оранжевий        → Оранжевий пісок
+    ///   Білий/прозорий   → Порожньо
+    /// ВАЖЛИВО: текстура повинна мати Read/Write Enabled в Inspector!
+    /// </summary>
+    public void LoadLevelFromTexture(Texture2D levelTexture)
+    {
+        if (levelTexture == null)
+        {
+            Debug.LogError("LoadLevelFromTexture: текстура = null!");
+            return;
+        }
+
+        ResetAllCounters();
+        isGameOver = false;
+
+        Color32[] pixels = levelTexture.GetPixels32();
+        int texW = levelTexture.width;
+        int texH = levelTexture.height;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                // Масштабуємо координати текстури під розмір сітки
+                int texX = Mathf.Clamp(Mathf.RoundToInt((float)x / width * texW), 0, texW - 1);
+                int texY = Mathf.Clamp(Mathf.RoundToInt((float)y / height * texH), 0, texH - 1);
+
+                Color32 pixel = pixels[texX + texY * texW];
+                int cellType = ClassifyPixel(pixel);
+                grid[x, y] = cellType;
+
+                // Рахуємо кількість кожного типу
+                switch (cellType)
+                {
+                    case BLUE_SAND:   totalBlueSandCount++;   currentBlueSandCount++;   break;
+                    case YELLOW_SAND: totalYellowSandCount++; currentYellowSandCount++; break;
+                    case RED_SAND:    totalRedSandCount++;    currentRedSandCount++;    break;
+                    case GREEN_SAND:  totalGreenSandCount++;  currentGreenSandCount++;  break;
+                    case ORANGE_SAND: totalOrangeSandCount++; currentOrangeSandCount++; break;
+                }
+            }
+        }
+
+        Debug.Log($"Рівень '{levelTexture.name}' завантажено: " +
+                  $"синій={totalBlueSandCount}, жовтий={totalYellowSandCount}, " +
+                  $"червоний={totalRedSandCount}, зелений={totalGreenSandCount}, " +
+                  $"оранжевий={totalOrangeSandCount}");
+    }
+
+    /// <summary>
+    /// Визначає тип клітинки по кольору пікселя.
+    /// </summary>
+    private int ClassifyPixel(Color32 c)
+    {
+        // Прозорий або майже прозорий → порожньо
+        if (c.a < 50) return EMPTY;
+
+        // Чорний або майже чорний → стіна
+        if (c.r < 50 && c.g < 50 && c.b < 50)
+            return WALL;
+
+        // Знаходимо домінуючий канал
+        float r = c.r;
+        float g = c.g;
+        float b = c.b;
+
+        // Синій: B >> R і B >> G
+        if (b > 150 && b > r + 60 && b > g + 60)
+            return BLUE_SAND;
+
+        // Жовтий: R і G великі, B малий
+        if (r > 150 && g > 150 && b < 80)
+            return YELLOW_SAND;
+
+        // Оранжевий: R великий, G середній, B малий
+        if (r > 180 && g > 80 && g < 180 && b < 80)
+            return ORANGE_SAND;
+
+        // Червоний: R великий, G і B малі
+        if (r > 150 && g < 80 && b < 80)
+            return RED_SAND;
+
+        // Зелений: G >> R і G >> B
+        if (g > 150 && g > r + 60 && g > b + 60)
+            return GREEN_SAND;
+
+        // Все інше — порожньо (білий тощо)
+        return EMPTY;
     }
 }
