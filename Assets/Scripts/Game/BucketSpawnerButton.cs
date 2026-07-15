@@ -8,6 +8,9 @@ public class BucketSpawnerButton : MonoBehaviour
     public float clickScaleMultiplier = 0.95f;
     public float animationSpeed = 10f;
 
+    [Header("Налаштування кольору відерця")]
+    public int bucketColorID = 1; // 1 - синій, 2 - жовтий
+
     private Vector3 targetScale;
     private ConveyorManager conveyorManager;
 
@@ -16,6 +19,21 @@ public class BucketSpawnerButton : MonoBehaviour
         originalScale = transform.localScale;
         targetScale = originalScale;
         conveyorManager = FindObjectOfType<ConveyorManager>();
+        
+        // Автоматично визначаємо колір за спрайтом кнопки
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        if (sr != null && sr.sprite != null)
+        {
+            string spriteName = sr.sprite.name.ToLower();
+            if (spriteName.Contains("blue"))
+            {
+                bucketColorID = 1;
+            }
+            else if (spriteName.Contains("yellow"))
+            {
+                bucketColorID = 2;
+            }
+        }
         
         // Перевіряємо наявність колайдера, необхідного для реєстрації кліків миші
         if (GetComponent<Collider2D>() == null)
@@ -44,9 +62,10 @@ public class BucketSpawnerButton : MonoBehaviour
     {
         targetScale = originalScale * clickScaleMultiplier;
         
+        bool spawned = false;
         if (conveyorManager != null)
         {
-            conveyorManager.SpawnBucket();
+            spawned = conveyorManager.SpawnBucket(bucketColorID);
         }
         else
         {
@@ -54,12 +73,17 @@ public class BucketSpawnerButton : MonoBehaviour
             conveyorManager = FindObjectOfType<ConveyorManager>();
             if (conveyorManager != null)
             {
-                conveyorManager.SpawnBucket();
+                spawned = conveyorManager.SpawnBucket(bucketColorID);
             }
             else
             {
                 Debug.LogError("[BucketSpawnerButton] Не знайдено ConveyorManager на сцені!");
             }
+        }
+        
+        if (spawned)
+        {
+            Destroy(gameObject);
         }
     }
 

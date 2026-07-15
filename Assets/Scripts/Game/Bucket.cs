@@ -40,8 +40,7 @@ public class Bucket : MonoBehaviour
         currentSandCount = 0;
         isFull = false;
 
-        // Рандомно змінюємо колір при поверненні на початок
-        targetColorID = Random.Range(1, 3);
+        // Зберігаємо оригінальний колір відерця (не змінюємо рандомно)
         SetCapacityFromSandCount();
         UpdateBucketVisuals();
     }

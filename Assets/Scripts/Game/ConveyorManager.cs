@@ -5,13 +5,14 @@ public class ConveyorManager : MonoBehaviour
     public GameObject bucketPrefab; // Сюди перетягни префаб відерця
     public Transform spawnPoint;    // Точка спавну (справа за екраном)
     public float spawnInterval = 3f; // Наскільки часто виїжджають відерця
-    public float minDistanceBetweenBuckets = 4f; // Мінімальна відстань між відерцями
+    public float minDistanceBetweenBuckets = 1.5f; // Мінімальна відстань між відерцями
 
     [Header("Автоматичний спавн")]
     public bool autoSpawn = false; // Якщо true, відерця спавняться самі. Якщо false - тільки при натисканні.
 
     void Start()
     {
+        minDistanceBetweenBuckets = 1.5f; // Обмежуємо відстань кодом, щоб оминути застаріле значення в сцені
         if (autoSpawn)
         {
             // Запускаємо регулярний спавн відерець
@@ -21,11 +22,16 @@ public class ConveyorManager : MonoBehaviour
 
     public void SpawnBucket()
     {
-        // Перевірка кількості відер на конвеєрі
+        SpawnBucket(Random.Range(1, 3));
+    }
+
+    public bool SpawnBucket(int colorID)
+    {
+        // Перевірка кількості відер на конвеєрі (збільшуємо ліміт до 6, оскільки нам потрібно по 3 кожного кольору)
         Bucket[] activeBuckets = FindObjectsOfType<Bucket>();
-        if (activeBuckets.Length >= 3)
+        if (activeBuckets.Length >= 6)
         {
-            return;
+            return false;
         }
 
         // Перевірка відстані до найближчого відерця від точки спавну
@@ -33,16 +39,18 @@ public class ConveyorManager : MonoBehaviour
         {
             if (Vector3.Distance(b.transform.position, spawnPoint.position) < minDistanceBetweenBuckets)
             {
-                return; // Якщо якесь відерце занадто близько до точки спавну, не спавнимо
+                return false; // Якщо якесь відерце занадто близько до точки спавну, не спавнимо
             }
         }
 
         GameObject newBucket = Instantiate(bucketPrefab, spawnPoint.position, Quaternion.identity);
         
-        // Рандомно задаємо колір для нового відерця (1 - синій, 2 - жовтий)
+        // Задаємо колір для нового відерця
         Bucket bucketScript = newBucket.GetComponent<Bucket>();
-        bucketScript.targetColorID = Random.Range(1, 3); 
+        bucketScript.targetColorID = colorID; 
         bucketScript.SetCapacityFromSandCount();
         bucketScript.UpdateBucketVisuals();
+
+        return true;
     }
 }

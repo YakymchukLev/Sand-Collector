@@ -243,7 +243,7 @@ MonoBehaviour:
   bucketPrefab: {fileID: 5228518425862896435, guid: 5048cdeadc98ae343ad54a66325bb159, type: 3}
   spawnPoint: {fileID: 114316658}
   spawnInterval: 3
-  minDistanceBetweenBuckets: 4
+  minDistanceBetweenBuckets: 1.5
   autoSpawn: 0
 --- !u!4 &114316658
 Transform:
