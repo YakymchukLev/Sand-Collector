@@ -22,7 +22,18 @@ public class ConveyorManager : MonoBehaviour
 
     public void SpawnBucket()
     {
-        SpawnBucket(Random.Range(1, 3));
+        if (SandCollector.Instance != null)
+        {
+            var activeColors = SandCollector.Instance.GetActiveSandColorIDs();
+            if (activeColors != null && activeColors.Count > 0)
+            {
+                // Обираємо тільки з кольорів, які присутні на фото поточного рівня!
+                int randomColorID = activeColors[Random.Range(0, activeColors.Count)];
+                SpawnBucket(randomColorID);
+                return;
+            }
+        }
+        SpawnBucket(1);
     }
 
     public bool SpawnBucket(int colorID)

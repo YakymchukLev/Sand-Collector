@@ -26,6 +26,8 @@ public class SandCollector : MonoBehaviour
     private int currentRedSandCount;
     private int currentGreenSandCount;
     private int currentOrangeSandCount;
+    private int currentWhiteSandCount;
+    private int currentBlackSandCount;
 
     private bool isGameOver = false;
 
@@ -37,6 +39,8 @@ public class SandCollector : MonoBehaviour
     public static int totalRedSandCount    { get; private set; }
     public static int totalGreenSandCount  { get; private set; }
     public static int totalOrangeSandCount { get; private set; }
+    public static int totalWhiteSandCount  { get; private set; }
+    public static int totalBlackSandCount  { get; private set; }
 
     // Типи клітинок
     private const int EMPTY       = 0;
@@ -46,6 +50,8 @@ public class SandCollector : MonoBehaviour
     private const int RED_SAND    = 4;
     private const int GREEN_SAND  = 5;
     private const int ORANGE_SAND = 6;
+    private const int WHITE_SAND  = 7;
+    private const int BLACK_SAND  = 8;
 
     // Кольори для рендерингу
     private static readonly Color32 COLOR_EMPTY  = new Color32(0, 0, 0, 0);
@@ -55,13 +61,13 @@ public class SandCollector : MonoBehaviour
     private static readonly Color32 COLOR_RED    = new Color32(220,  40,  40, 255);
     private static readonly Color32 COLOR_GREEN  = new Color32(40,  200,  60, 255);
     private static readonly Color32 COLOR_ORANGE = new Color32(255, 140,  20, 255);
+    private static readonly Color32 COLOR_WHITE  = new Color32(255, 255, 255, 255);
+    private static readonly Color32 COLOR_BLACK  = new Color32(20,  20,  20, 255);
 
     void Awake()
     {
         Instance = this;
 
-        // Ініціалізуємо сітку тут, а не в Start(),
-        // бо LevelManager.Start() може викликати LoadLevelFromTexture() раніше нашого Start()
         grid = new int[width, height];
         texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
         texture.filterMode = FilterMode.Point;
@@ -72,8 +78,6 @@ public class SandCollector : MonoBehaviour
     {
         displayRenderer.sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f));
 
-        // Якщо є LevelManager — просимо його завантажити поточний рівень
-        // Якщо немає — будуємо стандартний рівень
         if (LevelManager.Instance != null)
         {
             LevelManager.Instance.LoadCurrentLevel();
@@ -135,17 +139,14 @@ public class SandCollector : MonoBehaviour
 
     void UpdateSandPhysics()
     {
-        // Проходимо сітку знизу вгору
         for (int y = 1; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
                 int currentCell = grid[x, y];
 
-                // Працюємо з будь-яким кольором піску
                 if (!IsSand(currentCell)) continue;
 
-                // ЛОГІКА РОБОТИ КЛАПАНА/ШЛЮЗУ (y == 10)
                 if (y == 10)
                 {
                     Bucket bucketAtPos = GetBucketAtGridX(x);
@@ -164,23 +165,20 @@ public class SandCollector : MonoBehaviour
                         }
                         else
                         {
-                            continue; // Колір не співпав — шлюз закритий
+                            continue;
                         }
                     }
                     else
                     {
-                        continue; // Відерця немає — шлюз закритий
+                        continue;
                     }
                 }
 
-                // СТАНДАРТНИЙ РУХ ПІСКУ
-                // 1. Рух прямо вниз
                 if (grid[x, y - 1] == EMPTY)
                 {
                     grid[x, y - 1] = currentCell;
                     grid[x, y] = EMPTY;
                 }
-                // 2. Рандомізоване осипання вбік
                 else
                 {
                     bool checkLeftFirst = Random.value < 0.5f;
@@ -219,6 +217,8 @@ public class SandCollector : MonoBehaviour
                     case RED_SAND:    colorBuffer[pixelIndex] = COLOR_RED;    break;
                     case GREEN_SAND:  colorBuffer[pixelIndex] = COLOR_GREEN;  break;
                     case ORANGE_SAND: colorBuffer[pixelIndex] = COLOR_ORANGE; break;
+                    case WHITE_SAND:  colorBuffer[pixelIndex] = COLOR_WHITE;  break;
+                    case BLACK_SAND:  colorBuffer[pixelIndex] = COLOR_BLACK;  break;
                 }
             }
         }
@@ -251,16 +251,15 @@ public class SandCollector : MonoBehaviour
         return null;
     }
 
-    // --- Допоміжні методи ---
-
-    /// <summary>Чи є ця клітинка піском (будь-якого кольору)?</summary>
     private bool IsSand(int cellType)
     {
         return cellType == BLUE_SAND   ||
                cellType == YELLOW_SAND ||
                cellType == RED_SAND    ||
                cellType == GREEN_SAND  ||
-               cellType == ORANGE_SAND;
+               cellType == ORANGE_SAND ||
+               cellType == WHITE_SAND  ||
+               cellType == BLACK_SAND;
     }
 
     private void DecrementSandCount(int colorID)
@@ -272,6 +271,8 @@ public class SandCollector : MonoBehaviour
             case RED_SAND:    currentRedSandCount--;    break;
             case GREEN_SAND:  currentGreenSandCount--;  break;
             case ORANGE_SAND: currentOrangeSandCount--; break;
+            case WHITE_SAND:  currentWhiteSandCount--;  break;
+            case BLACK_SAND:  currentBlackSandCount--;  break;
         }
     }
 
@@ -284,8 +285,26 @@ public class SandCollector : MonoBehaviour
             case RED_SAND:    return currentRedSandCount    > 0;
             case GREEN_SAND:  return currentGreenSandCount  > 0;
             case ORANGE_SAND: return currentOrangeSandCount > 0;
+            case WHITE_SAND:  return currentWhiteSandCount  > 0;
+            case BLACK_SAND:  return currentBlackSandCount  > 0;
             default: return false;
         }
+    }
+
+    /// <summary>
+    /// Повертає список ідентифікаторів кольорів піску, які реально присутні на малюнку поточного рівня.
+    /// </summary>
+    public System.Collections.Generic.List<int> GetActiveSandColorIDs()
+    {
+        var activeColors = new System.Collections.Generic.List<int>();
+        if (totalBlueSandCount > 0)   activeColors.Add(BLUE_SAND);   // 1
+        if (totalYellowSandCount > 0) activeColors.Add(YELLOW_SAND); // 2
+        if (totalRedSandCount > 0)    activeColors.Add(RED_SAND);    // 4
+        if (totalGreenSandCount > 0)  activeColors.Add(GREEN_SAND);  // 5
+        if (totalOrangeSandCount > 0) activeColors.Add(ORANGE_SAND); // 6
+        if (totalWhiteSandCount > 0)  activeColors.Add(WHITE_SAND);  // 7
+        if (totalBlackSandCount > 0)  activeColors.Add(BLACK_SAND);  // 8
+        return activeColors;
     }
 
     private void CheckRemainingSand()
@@ -295,7 +314,9 @@ public class SandCollector : MonoBehaviour
             currentYellowSandCount <= 0 &&
             currentRedSandCount    <= 0 &&
             currentGreenSandCount  <= 0 &&
-            currentOrangeSandCount <= 0)
+            currentOrangeSandCount <= 0 &&
+            currentWhiteSandCount  <= 0 &&
+            currentBlackSandCount  <= 0)
         {
             isGameOver = true;
             Debug.Log("Весь пісок зібрано! Переходимо до наступного рівня...");
@@ -318,24 +339,10 @@ public class SandCollector : MonoBehaviour
         totalRedSandCount    = 0; currentRedSandCount    = 0;
         totalGreenSandCount  = 0; currentGreenSandCount  = 0;
         totalOrangeSandCount = 0; currentOrangeSandCount = 0;
+        totalWhiteSandCount  = 0; currentWhiteSandCount  = 0;
+        totalBlackSandCount  = 0; currentBlackSandCount  = 0;
     }
 
-    // ===================================================================
-    // ЗАВАНТАЖЕННЯ РІВНЯ З ТЕКСТУРИ
-    // ===================================================================
-
-    /// <summary>
-    /// Завантажує рівень з текстури. Викликається LevelManager.
-    /// Кольори пікселів:
-    ///   Чорний  (#000000) → Стіна
-    ///   Синій            → Синій пісок
-    ///   Жовтий           → Жовтий пісок
-    ///   Червоний         → Червоний пісок
-    ///   Зелений          → Зелений пісок
-    ///   Оранжевий        → Оранжевий пісок
-    ///   Білий/прозорий   → Порожньо
-    /// ВАЖЛИВО: текстура повинна мати Read/Write Enabled в Inspector!
-    /// </summary>
     public void LoadLevelFromTexture(Texture2D levelTexture)
     {
         if (levelTexture == null)
@@ -355,7 +362,6 @@ public class SandCollector : MonoBehaviour
         {
             for (int y = 0; y < height; y++)
             {
-                // Масштабуємо координати текстури під розмір сітки
                 int texX = Mathf.Clamp(Mathf.RoundToInt((float)x / width * texW), 0, texW - 1);
                 int texY = Mathf.Clamp(Mathf.RoundToInt((float)y / height * texH), 0, texH - 1);
 
@@ -363,7 +369,6 @@ public class SandCollector : MonoBehaviour
                 int cellType = ClassifyPixel(pixel);
                 grid[x, y] = cellType;
 
-                // Рахуємо кількість кожного типу
                 switch (cellType)
                 {
                     case BLUE_SAND:   totalBlueSandCount++;   currentBlueSandCount++;   break;
@@ -371,6 +376,8 @@ public class SandCollector : MonoBehaviour
                     case RED_SAND:    totalRedSandCount++;    currentRedSandCount++;    break;
                     case GREEN_SAND:  totalGreenSandCount++;  currentGreenSandCount++;  break;
                     case ORANGE_SAND: totalOrangeSandCount++; currentOrangeSandCount++; break;
+                    case WHITE_SAND:  totalWhiteSandCount++;  currentWhiteSandCount++;  break;
+                    case BLACK_SAND:  totalBlackSandCount++;  currentBlackSandCount++;  break;
                 }
             }
         }
@@ -378,47 +385,34 @@ public class SandCollector : MonoBehaviour
         Debug.Log($"Рівень '{levelTexture.name}' завантажено: " +
                   $"синій={totalBlueSandCount}, жовтий={totalYellowSandCount}, " +
                   $"червоний={totalRedSandCount}, зелений={totalGreenSandCount}, " +
-                  $"оранжевий={totalOrangeSandCount}");
+                  $"оранжевий={totalOrangeSandCount}, білий={totalWhiteSandCount}, чорний={totalBlackSandCount}");
     }
 
-    /// <summary>
-    /// Визначає тип клітинки по кольору пікселя.
-    /// </summary>
     private int ClassifyPixel(Color32 c)
     {
-        // Прозорий або майже прозорий → порожньо
+        // 1. Прозорий або майже прозорий → порожньо
         if (c.a < 50) return EMPTY;
 
-        // Чорний або майже чорний → стіна
-        if (c.r < 50 && c.g < 50 && c.b < 50)
-            return WALL;
+        // Конвертуємо колір у формат HSV (Hue, Saturation, Value)
+        Color.RGBToHSV(c, out float h, out float s, out float v);
 
-        // Знаходимо домінуючий канал
-        float r = c.r;
-        float g = c.g;
-        float b = c.b;
+        // 2. Чорний або дуже темний колір
+        if (v < 0.15f) return BLACK_SAND;
 
-        // Синій: B >> R і B >> G
-        if (b > 150 && b > r + 60 && b > g + 60)
-            return BLUE_SAND;
+        // 3. Відтінки сірого (низька насиченість)
+        if (s < 0.2f)
+        {
+            if (v > 0.72f) return WHITE_SAND; // Світло-сірий або білий
+            return WALL; // Середньо-сірий - це стіна
+        }
 
-        // Жовтий: R і G великі, B малий
-        if (r > 150 && g > 150 && b < 80)
-            return YELLOW_SAND;
+        // 4. Класифікація кольорових пікселів за відтінком (Hue)
+        if (h < 0.05f || h > 0.90f) return RED_SAND;
+        if (h >= 0.05f && h < 0.11f) return ORANGE_SAND;
+        if (h >= 0.11f && h < 0.22f) return YELLOW_SAND;
+        if (h >= 0.22f && h < 0.45f) return GREEN_SAND;
+        if (h >= 0.45f && h <= 0.90f) return BLUE_SAND;
 
-        // Оранжевий: R великий, G середній, B малий
-        if (r > 180 && g > 80 && g < 180 && b < 80)
-            return ORANGE_SAND;
-
-        // Червоний: R великий, G і B малі
-        if (r > 150 && g < 80 && b < 80)
-            return RED_SAND;
-
-        // Зелений: G >> R і G >> B
-        if (g > 150 && g > r + 60 && g > b + 60)
-            return GREEN_SAND;
-
-        // Все інше — порожньо (білий тощо)
-        return EMPTY;
+        return WALL; // Резервний варіант
     }
 }

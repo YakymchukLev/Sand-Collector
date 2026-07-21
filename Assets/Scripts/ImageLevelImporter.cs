@@ -103,8 +103,8 @@ public class ImageLevelImporter : MonoBehaviour
                     // Spawn Map Mode mapping rules:
                     // - Grey/Black pixels -> wall
                     // - Bright Pink/Magenta -> Spawners
-                    // - Cyan/Blue -> Water
-                    // - Yellow/Orange -> Sand
+                    // - White pixels -> White Sand
+                    // - Colored pixels -> Colored Sand
                     
                     bool isGrey = Math.Abs(pixel.r - pixel.g) < 20 && 
                                   Math.Abs(pixel.g - pixel.b) < 20 && 
@@ -119,15 +119,15 @@ public class ImageLevelImporter : MonoBehaviour
                         // Spawner
                         sim.SetCell(x, y, SandElement.SPAWNER, pixel);
                     }
-                    else if (pixel.b > 150 && pixel.r < 120 && pixel.g < 160)
+                    else if (pixel.r > 190 && pixel.g > 190 && pixel.b > 190)
                     {
-                        // Water
-                        sim.SetCell(x, y, SandElement.WATER);
+                        // White Sand
+                        sim.SetCell(x, y, SandElement.WHITE_SAND, new Color32(255, 255, 255, 255));
                     }
-                    else if (pixel.r > 160 && pixel.g > 130 && pixel.b < 100)
+                    else
                     {
                         // Sand
-                        sim.SetCell(x, y, SandElement.SAND);
+                        sim.SetCell(x, y, SandElement.SAND, pixel);
                     }
                 }
             }

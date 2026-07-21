@@ -6,8 +6,9 @@ public static class SandElement
     public const byte EMPTY = 0;
     public const byte WALL = 1;
     public const byte SAND = 2;
-    public const byte WATER = 3;
     public const byte SPAWNER = 4;
+    public const byte WHITE_SAND = 7;
+    public const byte BLACK_SAND = 8;
 }
 
 public class SandSimulation
@@ -27,12 +28,14 @@ public class SandSimulation
     private const int SPAWNER_INTERVAL = 2; // spawn every 2 frames
 
     private System.Random random;
+    private float _hueCounter = 0f; // rolling hue for rainbow sand
 
     // Default elements color definitions
     public static readonly Color32 ColorEmpty = new Color32(0, 0, 0, 0);
     public static readonly Color32 ColorWall = new Color32(80, 80, 80, 255);
     public static readonly Color32 ColorSand = new Color32(240, 208, 96, 255);
-    public static readonly Color32 ColorWater = new Color32(48, 144, 255, 255);
+    public static readonly Color32 ColorWhiteSand = new Color32(255, 255, 255, 255);
+    public static readonly Color32 ColorBlackSand = new Color32(20, 20, 20, 255);
     public static readonly Color32 ColorSpawner = new Color32(192, 64, 192, 255);
 
     public SandSimulation(int width, int height)
@@ -61,12 +64,52 @@ public class SandSimulation
     {
         switch (type)
         {
-            case SandElement.WALL: return ColorWall;
-            case SandElement.SAND: return ColorSand;
-            case SandElement.WATER: return ColorWater;
-            case SandElement.SPAWNER: return ColorSpawner;
-            default: return ColorEmpty;
+            case SandElement.WALL:       return ColorWall;
+            case SandElement.SAND:       return RandomSandColor();
+            case SandElement.WHITE_SAND: return ColorWhiteSand;
+            case SandElement.BLACK_SAND: return ColorBlackSand;
+            case SandElement.SPAWNER:    return ColorSpawner;
+            default:                     return ColorEmpty;
         }
+    }
+
+    /// <summary>
+    /// Returns a random vivid color cycling through the full HSV rainbow spectrum.
+    /// Every grain of sand gets a unique hue.
+    /// </summary>
+    private Color32 RandomSandColor()
+    {
+        // Advance hue by a golden-ratio step so consecutive grains spread
+        // across the spectrum without clustering
+        _hueCounter = (_hueCounter + 137.508f) % 360f;
+        // Add small random jitter so the same brush stroke has variety
+        float hue = (_hueCounter + (float)(random.NextDouble() * 30.0 - 15.0) + 360f) % 360f;
+        return HsvToColor32(hue, 1f, 1f);
+    }
+
+    /// <summary>
+    /// Converts HSV (Hue 0-360, Saturation 0-1, Value 0-1) to Color32.
+    /// </summary>
+    private static Color32 HsvToColor32(float h, float s, float v)
+    {
+        float hh = (h % 360f) / 60f;
+        int   i  = (int)hh;
+        float ff = hh - i;
+        float p  = v * (1f - s);
+        float q  = v * (1f - s * ff);
+        float t  = v * (1f - s * (1f - ff));
+
+        float r, g, b;
+        switch (i)
+        {
+            case 0:  r = v; g = t; b = p; break;
+            case 1:  r = q; g = v; b = p; break;
+            case 2:  r = p; g = v; b = t; break;
+            case 3:  r = p; g = q; b = v; break;
+            case 4:  r = t; g = p; b = v; break;
+            default: r = v; g = p; b = q; break;
+        }
+        return new Color32((byte)(r * 255), (byte)(g * 255), (byte)(b * 255), 255);
     }
 
     public byte GetCellType(int x, int y)
@@ -215,9 +258,9 @@ public class SandSimulation
                     int targetIdx = sy * Width + sx;
                     if (Types[targetIdx] == SandElement.EMPTY)
                     {
-                        // Spawn sand: use spawner color if custom, otherwise default sand color
+                        // Spawn sand: use spawner color if custom, otherwise random rainbow
                         bool isDefaultPink = color.r == ColorSpawner.r && color.g == ColorSpawner.g && color.b == ColorSpawner.b;
-                        Color32 sandColor = isDefaultPink ? ColorSand : color;
+                        Color32 sandColor = isDefaultPink ? RandomSandColor() : color;
 
                         Types[targetIdx] = SandElement.SAND;
                         Colors[targetIdx] = sandColor;
@@ -236,13 +279,9 @@ public class SandSimulation
         if (type == SandElement.EMPTY || type == SandElement.WALL || type == SandElement.SPAWNER) return;
         if (LastUpdated[idx] == FrameIndex) return;
 
-        if (type == SandElement.SAND)
+        if (type == SandElement.SAND || type == SandElement.WHITE_SAND)
         {
             UpdateSand(x, y, idx);
-        }
-        else if (type == SandElement.WATER)
-        {
-            UpdateWater(x, y, idx);
         }
     }
 
@@ -294,106 +333,7 @@ public class SandSimulation
 
         if (targetType == SandElement.EMPTY)
         {
-            Types[targetIdx] = SandElement.SAND;
-            Colors[targetIdx] = Colors[currIdx];
-            LastUpdated[targetIdx] = FrameIndex;
-
-            Types[currIdx] = SandElement.EMPTY;
-            Colors[currIdx] = ColorEmpty;
-            return true;
-        }
-        else if (targetType == SandElement.WATER)
-        {
-            // Sand sinks in water, swap
-            Types[targetIdx] = SandElement.SAND;
-            Color32 waterColor = Colors[targetIdx];
-            Colors[targetIdx] = Colors[currIdx];
-            LastUpdated[targetIdx] = FrameIndex;
-
-            Types[currIdx] = SandElement.WATER;
-            Colors[currIdx] = waterColor;
-            LastUpdated[currIdx] = FrameIndex;
-            return true;
-        }
-
-        return false;
-    }
-
-    private void UpdateWater(int x, int y, int idx)
-    {
-        int dx = 0, dy = 0;
-        if (GravityDirection == "down") dy = 1;
-        else if (GravityDirection == "up") dy = -1;
-        else if (GravityDirection == "left") dx = -1;
-        else if (GravityDirection == "right") dx = 1;
-
-        int nx = x + dx;
-        int ny = y + dy;
-
-        // Try direct movement
-        if (TryMoveWater(idx, x, y, nx, ny)) return;
-
-        // Try diagonals
-        int side1_x, side1_y, side2_x, side2_y;
-        if (dy != 0) // vertical gravity
-        {
-            side1_x = x - 1; side1_y = y + dy;
-            side2_x = x + 1; side2_y = y + dy;
-        }
-        else // horizontal gravity
-        {
-            side1_x = x + dx; side1_y = y - 1;
-            side2_x = x + dx; side2_y = y + 1;
-        }
-
-        bool sideFirst = random.NextDouble() < 0.5;
-        if (sideFirst)
-        {
-            if (TryMoveWater(idx, x, y, side1_x, side1_y)) return;
-            if (TryMoveWater(idx, x, y, side2_x, side2_y)) return;
-        }
-        else
-        {
-            if (TryMoveWater(idx, x, y, side2_x, side2_y)) return;
-            if (TryMoveWater(idx, x, y, side1_x, side1_y)) return;
-        }
-
-        // Spread perpendicular to gravity
-        int spread1_x, spread1_y, spread2_x, spread2_y;
-        if (dy != 0) // vertical gravity -> spread left/right
-        {
-            spread1_x = x - 1; spread1_y = y;
-            spread2_x = x + 1; spread2_y = y;
-        }
-        else // horizontal gravity -> spread up/down
-        {
-            spread1_x = x; spread1_y = y - 1;
-            spread2_x = x; spread2_y = y + 1;
-        }
-
-        sideFirst = random.NextDouble() < 0.5;
-        if (sideFirst)
-        {
-            if (TryMoveWater(idx, x, y, spread1_x, spread1_y)) return;
-            if (TryMoveWater(idx, x, y, spread2_x, spread2_y)) return;
-        }
-        else
-        {
-            if (TryMoveWater(idx, x, y, spread2_x, spread2_y)) return;
-            if (TryMoveWater(idx, x, y, spread1_x, spread1_y)) return;
-        }
-    }
-
-    private bool TryMoveWater(int currIdx, int cx, int cy, int tx, int ty)
-    {
-        if (tx < 0 || tx >= Width || ty < 0 || ty >= Height) return false;
-
-        int targetIdx = ty * Width + tx;
-        byte targetType = Types[targetIdx];
-
-        if (targetType == SandElement.EMPTY)
-        {
-            Types[targetIdx] = SandElement.WATER;
+            Types[targetIdx] = Types[currIdx];
             Colors[targetIdx] = Colors[currIdx];
             LastUpdated[targetIdx] = FrameIndex;
 

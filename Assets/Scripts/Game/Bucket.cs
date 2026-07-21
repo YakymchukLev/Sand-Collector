@@ -14,6 +14,8 @@ public class Bucket : MonoBehaviour
     public Sprite redBucketSprite;
     public Sprite greenBucketSprite;
     public Sprite orangeBucketSprite;
+    public Sprite whiteBucketSprite;
+    public Sprite blackBucketSprite;
 
     private int currentSandCount = 0;
     private Vector3 startPosition;
@@ -43,7 +45,6 @@ public class Bucket : MonoBehaviour
         currentSandCount = 0;
         isFull = false;
 
-        // Зберігаємо оригінальний колір відерця (не змінюємо рандомно)
         SetCapacityFromSandCount();
         UpdateBucketVisuals();
     }
@@ -59,6 +60,8 @@ public class Bucket : MonoBehaviour
             case 4: capacity = Mathf.CeilToInt(SandCollector.totalRedSandCount    / 3f); break;
             case 5: capacity = Mathf.CeilToInt(SandCollector.totalGreenSandCount  / 3f); break;
             case 6: capacity = Mathf.CeilToInt(SandCollector.totalOrangeSandCount / 3f); break;
+            case 7: capacity = Mathf.CeilToInt(SandCollector.totalWhiteSandCount  / 3f); break;
+            case 8: capacity = Mathf.CeilToInt(SandCollector.totalBlackSandCount  / 3f); break;
         }
         if (capacity < 1) capacity = 1;
     }
@@ -67,7 +70,7 @@ public class Bucket : MonoBehaviour
     {
         if (isFull) return;
         isFull = true;
-        currentSandCount = capacity; // Задаємо 100% заповненість
+        currentSandCount = capacity;
         OnBucketFull();
     }
 
@@ -85,8 +88,11 @@ public class Bucket : MonoBehaviour
             case 4: sr.sprite = redBucketSprite    != null ? redBucketSprite    : blueBucketSprite; sr.color = new Color32(220, 40,  40,  255); break;
             case 5: sr.sprite = greenBucketSprite  != null ? greenBucketSprite  : blueBucketSprite; sr.color = new Color32(40,  200, 60,  255); break;
             case 6: sr.sprite = orangeBucketSprite != null ? orangeBucketSprite : blueBucketSprite; sr.color = new Color32(255, 140, 20,  255); break;
+            case 7: sr.sprite = whiteBucketSprite  != null ? whiteBucketSprite  : blueBucketSprite; sr.color = Color.white; break;
+            case 8: sr.sprite = blackBucketSprite  != null ? blackBucketSprite  : blueBucketSprite; sr.color = Color.black; break;
         }
     }
+
 
     public float GetFillPercentage()
     {
