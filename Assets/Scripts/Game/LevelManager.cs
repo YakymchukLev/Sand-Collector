@@ -14,6 +14,10 @@ public class LevelManager : MonoBehaviour
     [Tooltip("Перетягніть сюди текстури з папки Sprites/Sprites_LVL/ у потрібному порядку. Індекс 0 = Рівень 1.")]
     public Texture2D[] levelTextures;
 
+    [Header("Сцени рівнів")]
+    [Tooltip("Назви сцен для кожного рівня, наприклад: LVL1, LVL2. Якщо заповнено, прогресія буде йти по сценах.")]
+    public string[] levelSceneNames;
+
     [Header("Поточний рівень")]
     [Tooltip("З якого рівня починати (0 = перший)")]
     public int startLevelIndex = 0;
@@ -22,7 +26,15 @@ public class LevelManager : MonoBehaviour
     public int CurrentLevelIndex { get; private set; }
 
     // Загальна кількість рівнів
-    public int TotalLevels => levelTextures != null ? levelTextures.Length : 0;
+    public int TotalLevels
+    {
+        get
+        {
+            int textureCount = levelTextures != null ? levelTextures.Length : 0;
+            int sceneCount = levelSceneNames != null ? levelSceneNames.Length : 0;
+            return Mathf.Max(textureCount, sceneCount);
+        }
+    }
 
     void Awake()
     {
@@ -45,11 +57,142 @@ public class LevelManager : MonoBehaviour
         // Не викликаємо LoadCurrentLevel() тут, щоб уникнути NullReferenceException.
     }
 
+    private int GetSceneBuildIndex(string sceneName)
+    {
+        if (string.IsNullOrEmpty(sceneName)) return -1;
+
+        for (int i = 0; i < SceneManager.sceneCountInBuildSettings; i++)
+        {
+            string path = SceneUtility.GetScenePathByBuildIndex(i);
+            if (string.IsNullOrEmpty(path)) continue;
+
+            string name = System.IO.Path.GetFileNameWithoutExtension(path);
+            if (name == sceneName)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private bool TryGetLevelIndexFromBuildIndex(int buildIndex, out int levelIndex)
+    {
+        levelIndex = -1;
+
+        if (buildIndex < 0 || buildIndex >= SceneManager.sceneCountInBuildSettings)
+        {
+            return false;
+        }
+
+        if (levelSceneNames != null)
+        {
+            for (int i = 0; i < levelSceneNames.Length; i++)
+            {
+                string sceneName = levelSceneNames[i];
+                if (string.IsNullOrEmpty(sceneName))
+                    continue;
+
+                int index = GetSceneBuildIndex(sceneName);
+                if (index == buildIndex)
+                {
+                    levelIndex = i;
+                    return true;
+                }
+            }
+        }
+
+        if (buildIndex > 0)
+        {
+            levelIndex = buildIndex - 1;
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool TryLoadLevelSceneByBuildIndex(int buildIndex)
+    {
+        if (!TryGetLevelIndexFromBuildIndex(buildIndex, out int levelIndex))
+        {
+            return false;
+        }
+
+        CurrentLevelIndex = levelIndex;
+        int currentBuildIndex = SceneManager.GetActiveScene().buildIndex;
+        if (currentBuildIndex == buildIndex)
+        {
+            GameStats.CurrentLevel = buildIndex;
+            return true;
+        }
+
+        string sceneName = System.IO.Path.GetFileNameWithoutExtension(SceneUtility.GetScenePathByBuildIndex(buildIndex));
+        if (string.IsNullOrEmpty(sceneName) || sceneName == "Menu")
+        {
+            return false;
+        }
+
+        GameStats.CurrentLevel = buildIndex;
+        SceneManager.LoadScene(buildIndex);
+        return true;
+    }
+
+    public bool TryGetLevelSceneBuildIndex(int levelIndex, out int buildIndex)
+    {
+        buildIndex = -1;
+        if (levelIndex < 0)
+        {
+            return false;
+        }
+
+        if (levelSceneNames != null && levelSceneNames.Length > levelIndex)
+        {
+            string sceneName = levelSceneNames[levelIndex];
+            if (!string.IsNullOrEmpty(sceneName))
+            {
+                buildIndex = GetSceneBuildIndex(sceneName);
+            }
+        }
+
+        if (buildIndex < 0)
+        {
+            buildIndex = levelIndex + 1;
+        }
+
+        if (buildIndex < 0 || buildIndex >= SceneManager.sceneCountInBuildSettings)
+        {
+            buildIndex = -1;
+            return false;
+        }
+
+        string scenePath = SceneUtility.GetScenePathByBuildIndex(buildIndex);
+        if (string.IsNullOrEmpty(scenePath))
+        {
+            buildIndex = -1;
+            return false;
+        }
+
+        return true;
+    }
+
     /// <summary>
     /// Завантажити поточний рівень у SandCollector.
     /// </summary>
     public void LoadCurrentLevel()
     {
+        if (TryGetLevelSceneBuildIndex(CurrentLevelIndex, out int targetBuildIndex))
+        {
+            int activeBuildIndex = SceneManager.GetActiveScene().buildIndex;
+            if (activeBuildIndex != targetBuildIndex)
+            {
+                GameStats.CurrentLevel = targetBuildIndex;
+                SceneManager.LoadScene(targetBuildIndex);
+                return;
+            }
+
+            GameStats.CurrentLevel = targetBuildIndex;
+        }
+
         if (levelTextures == null || levelTextures.Length == 0)
         {
             Debug.LogWarning("LevelManager: масив levelTextures порожній! Додайте текстури в Inspector.");
@@ -71,7 +214,6 @@ public class LevelManager : MonoBehaviour
 
         Debug.Log($"LevelManager: завантажуємо рівень {CurrentLevelIndex + 1} з текстури '{tex.name}' ({tex.width}x{tex.height})");
 
-        // Передаємо текстуру в SandCollector
         if (SandCollector.Instance != null)
         {
             SandCollector.Instance.LoadLevelFromTexture(tex);
@@ -82,8 +224,14 @@ public class LevelManager : MonoBehaviour
         }
     }
 
+    public void LoadMainMenu()
+    {
+        SaveCurrentScene.SaveFinish();
+        SceneManager.LoadScene("Menu");
+    }
+
     /// <summary>
-    /// Перейти до наступного рівня. Якщо рівнів більше немає — повертаємось в меню.
+    /// Завантажити наступний рівень.
     /// </summary>
     public void LoadNextLevel()
     {
@@ -91,12 +239,10 @@ public class LevelManager : MonoBehaviour
 
         if (CurrentLevelIndex >= TotalLevels)
         {
-            Debug.Log("LevelManager: всі рівні пройдено! Повертаємось у меню.");
-            SceneManager.LoadScene("Menu");
+            LoadMainMenu();
             return;
         }
 
-        Debug.Log($"LevelManager: переходимо на рівень {CurrentLevelIndex + 1}");
         LoadCurrentLevel();
     }
 

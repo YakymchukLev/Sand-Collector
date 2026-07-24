@@ -94,6 +94,27 @@ public class SandCollector : MonoBehaviour
         DrawGrid();
     }
 
+    private void ClearExistingBucketsAndSpawners()
+    {
+        Bucket[] existingBuckets = FindObjectsOfType<Bucket>();
+        foreach (Bucket bucket in existingBuckets)
+        {
+            if (bucket != null)
+            {
+                bucket.RemoveFromScene(true);
+            }
+        }
+
+        ConveyorManager[] conveyorManagers = FindObjectsOfType<ConveyorManager>();
+        foreach (ConveyorManager manager in conveyorManagers)
+        {
+            if (manager != null)
+            {
+                manager.StopSpawning();
+            }
+        }
+    }
+
     // Створюємо бортики та засипаємо пісок всередину (стандартний рівень без картинки)
     void BuildBordersAndSand()
     {
@@ -139,6 +160,28 @@ public class SandCollector : MonoBehaviour
 
     void UpdateSandPhysics()
     {
+        // Обробляємо y=0 окремо — пісок на самому дні збирається відерцями
+        for (int x = 0; x < width; x++)
+        {
+            int currentCell = grid[x, 0];
+            if (!IsSand(currentCell)) continue;
+
+            Bucket bucketAtPos = GetBucketAtGridX(x);
+            if (bucketAtPos != null)
+            {
+                if (bucketAtPos.AddSand(currentCell))
+                {
+                    grid[x, 0] = EMPTY;
+                    DecrementSandCount(currentCell);
+
+                    if (!IsAnySandOfColorLeft(currentCell))
+                        bucketAtPos.ForceFull();
+
+                    CheckRemainingSand();
+                }
+            }
+        }
+
         for (int y = 1; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -147,33 +190,7 @@ public class SandCollector : MonoBehaviour
 
                 if (!IsSand(currentCell)) continue;
 
-                if (y == 10)
-                {
-                    Bucket bucketAtPos = GetBucketAtGridX(x);
-                    if (bucketAtPos != null)
-                    {
-                        if (bucketAtPos.AddSand(currentCell))
-                        {
-                            grid[x, y] = EMPTY;
-                            DecrementSandCount(currentCell);
-
-                            if (!IsAnySandOfColorLeft(currentCell))
-                                bucketAtPos.ForceFull();
-
-                            CheckRemainingSand();
-                            continue;
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        continue;
-                    }
-                }
-
+                // Спроба впасти вниз
                 if (grid[x, y - 1] == EMPTY)
                 {
                     grid[x, y - 1] = currentCell;
@@ -195,6 +212,27 @@ public class SandCollector : MonoBehaviour
                         { grid[x + 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
                         else if (x > 0 && grid[x - 1, y - 1] == EMPTY)
                         { grid[x - 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
+                    }
+                }
+
+                // Якщо піщинка тепер на найнижчому рядку (y=1 впала на y=0), 
+                // або якщо вона стоїть і не може впасти — спробуємо зібрати відерцем
+                if (y == 1 && grid[x, y] == currentCell)
+                {
+                    // Піщинка не змогла впасти — вона застрягла, спробуємо зібрати
+                    Bucket bucketAtPos = GetBucketAtGridX(x);
+                    if (bucketAtPos != null)
+                    {
+                        if (bucketAtPos.AddSand(currentCell))
+                        {
+                            grid[x, y] = EMPTY;
+                            DecrementSandCount(currentCell);
+
+                            if (!IsAnySandOfColorLeft(currentCell))
+                                bucketAtPos.ForceFull();
+
+                            CheckRemainingSand();
+                        }
                     }
                 }
             }
@@ -319,15 +357,17 @@ public class SandCollector : MonoBehaviour
             currentBlackSandCount  <= 0)
         {
             isGameOver = true;
-            Debug.Log("Весь пісок зібрано! Переходимо до наступного рівня...");
-            Invoke(nameof(GoToNextLevel), 2f);
+            Debug.Log("Весь пісок зібрано! Повертаємося в меню...");
+            Invoke(nameof(GoToMenu), 2f);
         }
     }
 
-    private void GoToNextLevel()
+    private void GoToMenu()
     {
+        ClearExistingBucketsAndSpawners();
+
         if (LevelManager.Instance != null)
-            LevelManager.Instance.LoadNextLevel();
+            LevelManager.Instance.LoadMainMenu();
         else
             UnityEngine.SceneManagement.SceneManager.LoadScene("Menu");
     }
@@ -351,6 +391,7 @@ public class SandCollector : MonoBehaviour
             return;
         }
 
+        ClearExistingBucketsAndSpawners();
         ResetAllCounters();
         isGameOver = false;
 

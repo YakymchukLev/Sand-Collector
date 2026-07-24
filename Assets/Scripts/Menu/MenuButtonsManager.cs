@@ -3,18 +3,29 @@ using UnityEngine.SceneManagement;
 
 public class MenuButtonsManager : MonoBehaviour
 {
-    [SerializeField] private string sceneName;
+    [SerializeField] private int fallbackSceneBuildIndex = 1;
 
     public void StartMainGame()
     {
-        if (!string.IsNullOrEmpty(sceneName))
+        int targetSceneIndex = GameStats.CurrentLevel;
+
+        if (targetSceneIndex <= 0)
         {
-            SceneManager.LoadSceneAsync(sceneName);
+            targetSceneIndex = fallbackSceneBuildIndex;
         }
-        else
+
+        if (LevelManager.Instance != null && LevelManager.Instance.TryLoadLevelSceneByBuildIndex(targetSceneIndex))
         {
-            Debug.LogWarning("Scene name is empty in MenuButtonsManager!");
+            return;
         }
+
+        if (targetSceneIndex < 0 || targetSceneIndex >= SceneManager.sceneCountInBuildSettings)
+        {
+            Debug.LogWarning($"MenuButtonsManager: build index {targetSceneIndex} is invalid. Falling back to {fallbackSceneBuildIndex}.");
+            targetSceneIndex = fallbackSceneBuildIndex;
+        }
+
+        SceneManager.LoadScene(targetSceneIndex);
     }
 
     public void OpenShop(GameObject shopPanel)

@@ -20,6 +20,16 @@ public class ConveyorManager : MonoBehaviour
         }
     }
 
+    void OnDisable()
+    {
+        StopSpawning();
+    }
+
+    public void StopSpawning()
+    {
+        CancelInvoke(nameof(SpawnBucket));
+    }
+
     public void SpawnBucket()
     {
         if (SandCollector.Instance != null)

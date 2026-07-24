@@ -66,6 +66,21 @@ public class Bucket : MonoBehaviour
         if (capacity < 1) capacity = 1;
     }
 
+    public void RemoveFromScene(bool immediate = false)
+    {
+        if (gameObject == null) return;
+
+        enabled = false;
+
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            sr.enabled = false;
+        }
+
+        Destroy(gameObject, immediate ? 0f : destroyDelay);
+    }
+
     public void ForceFull()
     {
         if (isFull) return;
@@ -128,7 +143,6 @@ public class Bucket : MonoBehaviour
     void OnBucketFull()
     {
         Debug.Log("Відерце повне (100%)! Отримуємо бали.");
-        // Знищуємо об'єкт із затримкою
-        Destroy(gameObject, destroyDelay); 
+        RemoveFromScene();
     }
 }
