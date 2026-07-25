@@ -7,6 +7,8 @@ public class MenuButtonsManager : MonoBehaviour
 
     public void StartMainGame()
     {
+        GameStats.LoadCurrentLevelFromPrefs();
+
         int targetSceneIndex = GameStats.CurrentLevel;
 
         if (targetSceneIndex <= 0)
