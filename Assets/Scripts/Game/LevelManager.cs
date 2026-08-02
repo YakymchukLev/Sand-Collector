@@ -10,9 +10,9 @@ public class LevelManager : MonoBehaviour
 {
     public static LevelManager Instance { get; private set; }
 
-    [Header("Текстури рівнів (Sprites_LVL)")]
-    [Tooltip("Перетягніть сюди текстури з папки Sprites/Sprites_LVL/ у потрібному порядку. Індекс 0 = Рівень 1.")]
-    public Texture2D[] levelTextures;
+    [Header("Текстура рівня (Sprites_LVL)")]
+    [Tooltip("Перетягніть сюди текстуру рівня.")]
+    public Texture2D levelTexture;
 
     [Header("Сцени рівнів")]
     [Tooltip("Назви сцен для кожного рівня, наприклад: LVL1, LVL2. Якщо заповнено, прогресія буде йти по сценах.")]
@@ -30,7 +30,7 @@ public class LevelManager : MonoBehaviour
     {
         get
         {
-            int textureCount = levelTextures != null ? levelTextures.Length : 0;
+            int textureCount = levelTexture != null ? 1 : 0;
             int sceneCount = levelSceneNames != null ? levelSceneNames.Length : 0;
             return Mathf.Max(textureCount, sceneCount);
         }
@@ -38,16 +38,9 @@ public class LevelManager : MonoBehaviour
 
     void Awake()
     {
-        // Singleton — один LevelManager на всю гру
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
         Instance = this;
-        DontDestroyOnLoad(gameObject); // Зберігаємо між сценами
 
-        CurrentLevelIndex = startLevelIndex;
+        CurrentLevelIndex = ResolveLevelIndex(startLevelIndex);
     }
 
     void Start()
@@ -55,6 +48,26 @@ public class LevelManager : MonoBehaviour
         // Завантаження рівня тепер ініціюється з SandCollector.Start(),
         // після того як grid та texture вже ініціалізовані.
         // Не викликаємо LoadCurrentLevel() тут, щоб уникнути NullReferenceException.
+    }
+
+    private int ResolveLevelIndex(int requestedIndex)
+    {
+        if (TryGetLevelIndexFromBuildIndex(SceneManager.GetActiveScene().buildIndex, out int sceneLevelIndex))
+        {
+            return sceneLevelIndex;
+        }
+
+        if (levelSceneNames == null || levelSceneNames.Length == 0)
+        {
+            if (levelTexture != null) return 0;
+        }
+
+        if (levelSceneNames != null && levelSceneNames.Length > 0)
+        {
+            return Mathf.Clamp(requestedIndex, 0, levelSceneNames.Length - 1);
+        }
+
+        return Mathf.Max(0, requestedIndex);
     }
 
     private int GetSceneBuildIndex(string sceneName)
@@ -180,6 +193,8 @@ public class LevelManager : MonoBehaviour
     /// </summary>
     public void LoadCurrentLevel()
     {
+        CurrentLevelIndex = ResolveLevelIndex(CurrentLevelIndex);
+
         if (TryGetLevelSceneBuildIndex(CurrentLevelIndex, out int targetBuildIndex))
         {
             int activeBuildIndex = SceneManager.GetActiveScene().buildIndex;
@@ -193,24 +208,13 @@ public class LevelManager : MonoBehaviour
             GameStats.CurrentLevel = targetBuildIndex;
         }
 
-        if (levelTextures == null || levelTextures.Length == 0)
+        if (levelTexture == null)
         {
-            Debug.LogWarning("LevelManager: масив levelTextures порожній! Додайте текстури в Inspector.");
+            Debug.LogWarning("LevelManager: levelTexture не задана! Додайте текстуру в Inspector.");
             return;
         }
 
-        if (CurrentLevelIndex < 0 || CurrentLevelIndex >= levelTextures.Length)
-        {
-            Debug.LogWarning($"LevelManager: індекс рівня {CurrentLevelIndex} виходить за межі масиву ({levelTextures.Length} рівнів).");
-            return;
-        }
-
-        Texture2D tex = levelTextures[CurrentLevelIndex];
-        if (tex == null)
-        {
-            Debug.LogWarning($"LevelManager: текстура рівня {CurrentLevelIndex + 1} = null! Перевірте масив в Inspector.");
-            return;
-        }
+        Texture2D tex = levelTexture;
 
         Debug.Log($"LevelManager: завантажуємо рівень {CurrentLevelIndex + 1} з текстури '{tex.name}' ({tex.width}x{tex.height})");
 

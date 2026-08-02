@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class SandCollector : MonoBehaviour
 {
@@ -29,7 +30,18 @@ public class SandCollector : MonoBehaviour
     private int currentWhiteSandCount;
     private int currentBlackSandCount;
 
+    public GameObject losePanel; // Assign LosePanel UI in Inspector
+    public GameObject winPanel; // Assign WinPanel UI in Inspector
+
     private bool isGameOver = false;
+    private bool isLevelCompleted = false;
+
+    // Таймер програшу: коли всі слоти зайняті і жодне відро не заповнене
+    [Header("Програш")]
+    [Tooltip("Скільки секунд чекати перед програшем, коли всі слоти зайняті")]
+    public float loseTimerDuration = 5f;
+    private float loseTimer = 0f;
+    private bool loseTimerActive = false;
 
     public static SandCollector Instance { get; private set; }
 
@@ -67,6 +79,7 @@ public class SandCollector : MonoBehaviour
     void Awake()
     {
         Instance = this;
+        isLevelCompleted = false;
 
         grid = new int[width, height];
         texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
@@ -92,11 +105,16 @@ public class SandCollector : MonoBehaviour
     {
         UpdateSandPhysics();
         DrawGrid();
+        // Check lose condition after physics update
+        if (!isGameOver)
+        {
+            CheckLoseCondition();
+        }
     }
 
     private void ClearExistingBucketsAndSpawners()
     {
-        Bucket[] existingBuckets = FindObjectsOfType<Bucket>();
+        Bucket[] existingBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
         foreach (Bucket bucket in existingBuckets)
         {
             if (bucket != null)
@@ -105,12 +123,21 @@ public class SandCollector : MonoBehaviour
             }
         }
 
-        ConveyorManager[] conveyorManagers = FindObjectsOfType<ConveyorManager>();
+        ConveyorManager[] conveyorManagers = FindObjectsByType<ConveyorManager>(FindObjectsSortMode.None);
         foreach (ConveyorManager manager in conveyorManagers)
         {
             if (manager != null)
             {
                 manager.StopSpawning();
+            }
+        }
+
+        BucketSpawnerButton[] spawnerButtons = FindObjectsByType<BucketSpawnerButton>(FindObjectsSortMode.None);
+        foreach (BucketSpawnerButton btn in spawnerButtons)
+        {
+            if (btn != null)
+            {
+                btn.ResetState();
             }
         }
     }
@@ -151,11 +178,12 @@ public class SandCollector : MonoBehaviour
                 else if (y >= 55 && y < 70) { grid[x, y] = YELLOW_SAND; totalYellowSandCount++; currentYellowSandCount++; }
                 else if (y >= 70 && y < 80) { grid[x, y] = RED_SAND;    totalRedSandCount++;    currentRedSandCount++; }
                 else if (y >= 80 && y < 88) { grid[x, y] = GREEN_SAND;  totalGreenSandCount++;  currentGreenSandCount++; }
-                else if (y >= 88 && y < 95) { grid[x, y] = ORANGE_SAND; totalOrangeSandCount++; currentOrangeSandCount++; }
+                else if (y >= 88 && y < 95) { grid[x, y] = RED_SAND;    totalRedSandCount++;    currentRedSandCount++; }
             }
         }
 
         isGameOver = false;
+        ResetLoseTimer();
     }
 
     void UpdateSandPhysics()
@@ -271,7 +299,7 @@ public class SandCollector : MonoBehaviour
         float spriteWorldWidth = bounds.size.x;
         float worldX = bounds.min.x + ((float)x / width) * spriteWorldWidth;
 
-        Bucket[] buckets = FindObjectsOfType<Bucket>();
+        Bucket[] buckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
         foreach (Bucket bucket in buckets)
         {
             Collider2D bucketCollider = bucket.GetComponent<Collider2D>();
@@ -345,31 +373,201 @@ public class SandCollector : MonoBehaviour
         return activeColors;
     }
 
-    private void CheckRemainingSand()
+    private void CheckLoseCondition()
     {
-        if (!isGameOver &&
-            currentBlueSandCount   <= 0 &&
-            currentYellowSandCount <= 0 &&
-            currentRedSandCount    <= 0 &&
-            currentGreenSandCount  <= 0 &&
-            currentOrangeSandCount <= 0 &&
-            currentWhiteSandCount  <= 0 &&
-            currentBlackSandCount  <= 0)
+        var conveyor = FindFirstObjectByType<ConveyorManager>();
+        if (conveyor == null) return;
+
+        Bucket[] activeBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
+        bool hasAnyActiveBucket = activeBuckets != null && activeBuckets.Length > 0;
+        bool hasFreeSlot = activeBuckets.Length < conveyor.maxActiveBuckets;
+        bool hasFullBucket = false;
+
+        foreach (var bucket in activeBuckets)
         {
-            isGameOver = true;
-            Debug.Log("Весь пісок зібрано! Повертаємося в меню...");
-            Invoke(nameof(GoToMenu), 2f);
+            if (bucket == null)
+                continue;
+
+            if (bucket.IsFull)
+            {
+                hasFullBucket = true;
+                break;
+            }
+        }
+
+        if (!hasAnyActiveBucket)
+        {
+            ResetLoseTimer();
+            return;
+        }
+
+        if (hasFreeSlot || hasFullBucket)
+        {
+            ResetLoseTimer();
+            return;
+        }
+
+        if (!loseTimerActive)
+        {
+            loseTimerActive = true;
+            loseTimer = 0f;
+            Debug.Log($"Lose timer started: {loseTimerDuration} seconds to fill a bucket!");
+        }
+
+        loseTimer += Time.deltaTime;
+
+        if (loseTimer >= loseTimerDuration)
+        {
+            TriggerGameOver();
         }
     }
 
-    private void GoToMenu()
+    private void ResetLoseTimer()
     {
-        ClearExistingBucketsAndSpawners();
+        if (loseTimerActive)
+        {
+            Debug.Log("Lose timer reset.");
+        }
+        loseTimerActive = false;
+        loseTimer = 0f;
+    }
+
+    private void TriggerGameOver()
+    {
+        isGameOver = true;
+        Debug.Log("Game Over: All bucket slots occupied and none filled within time limit.");
+
+        // Вмикаємо панель програшу
+        if (losePanel != null)
+        {
+            losePanel.SetActive(true);
+        }
+
+        // Вимикаємо кнопки спавна відер
+        BucketSpawnerButton[] spawnerButtons = FindObjectsByType<BucketSpawnerButton>(FindObjectsSortMode.None);
+        foreach (BucketSpawnerButton btn in spawnerButtons)
+        {
+            if (btn != null)
+            {
+                btn.DisableForGameOver();
+            }
+        }
+
+        // Вимикаємо відра на конвеєрі
+        Bucket[] activeBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
+        foreach (Bucket bucket in activeBuckets)
+        {
+            if (bucket != null)
+            {
+                bucket.DisableForGameOver();
+            }
+        }
+
+        // Зупиняємо спавн конвеєра
+        ConveyorManager[] conveyors = FindObjectsByType<ConveyorManager>(FindObjectsSortMode.None);
+        foreach (ConveyorManager cm in conveyors)
+        {
+            if (cm != null)
+                cm.StopSpawning();
+        }
+
+        // Зупиняємо гру (UI продовжує працювати)
+        Time.timeScale = 0f;
+    }
+
+    /// <summary>
+    /// Перевіряє чи залишився пісок на сітці. Якщо ні — рівень пройдено.
+    /// </summary>
+    private void CheckRemainingSand()
+    {
+        if (isLevelCompleted || isGameOver)
+            return;
+
+        bool anySandLeft = currentBlueSandCount > 0 ||
+                           currentYellowSandCount > 0 ||
+                           currentRedSandCount > 0 ||
+                           currentGreenSandCount > 0 ||
+                           currentOrangeSandCount > 0 ||
+                           currentWhiteSandCount > 0 ||
+                           currentBlackSandCount > 0;
+
+        if (!anySandLeft)
+        {
+            isLevelCompleted = true;
+            Debug.Log("All sand collected! Level complete.");
+            ShowWinPanel();
+        }
+    }
+
+    private void ShowWinPanel()
+    {
+        if (isGameOver)
+            return;
+
+        isGameOver = true;
+        isLevelCompleted = true;
+        DisableGameplayForCompletion();
+
+        if (losePanel != null)
+        {
+            losePanel.SetActive(false);
+        }
+
+        if (winPanel == null)
+        {
+            winPanel = GameObject.Find("WinPanel");
+        }
+
+        if (winPanel != null)
+        {
+            winPanel.SetActive(true);
+            var panelController = winPanel.GetComponent<LostPanelController>() ?? winPanel.GetComponentInChildren<LostPanelController>();
+            panelController?.BindContinueButton(winPanel);
+        }
+        else
+        {
+            Debug.LogWarning("SandCollector: WinPanel is not assigned and no object named 'WinPanel' was found.");
+        }
 
         if (LevelManager.Instance != null)
-            LevelManager.Instance.LoadMainMenu();
-        else
-            UnityEngine.SceneManagement.SceneManager.LoadScene("Menu");
+        {
+            int activeBuildIndex = UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex;
+            GameStats.MarkLevelCompleted(activeBuildIndex);
+            GameStats.CurrentLevel = activeBuildIndex + 1;
+        }
+
+        Time.timeScale = 0f;
+    }
+
+    private void DisableGameplayForCompletion()
+    {
+        BucketSpawnerButton[] spawnerButtons = FindObjectsByType<BucketSpawnerButton>(FindObjectsSortMode.None);
+        foreach (BucketSpawnerButton btn in spawnerButtons)
+        {
+            if (btn != null)
+            {
+                btn.DisableForGameOver();
+            }
+        }
+
+        Bucket[] activeBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
+        foreach (Bucket bucket in activeBuckets)
+        {
+            if (bucket != null)
+            {
+                bucket.DisableForGameOver();
+            }
+        }
+
+        ConveyorManager[] conveyors = FindObjectsByType<ConveyorManager>(FindObjectsSortMode.None);
+        foreach (ConveyorManager cm in conveyors)
+        {
+            if (cm != null)
+            {
+                cm.StopSpawning();
+                cm.enabled = false;
+            }
+        }
     }
 
     private void ResetAllCounters()
@@ -394,6 +592,8 @@ public class SandCollector : MonoBehaviour
         ClearExistingBucketsAndSpawners();
         ResetAllCounters();
         isGameOver = false;
+        isLevelCompleted = false;
+        ResetLoseTimer();
 
         Color32[] pixels = levelTexture.GetPixels32();
         int texW = levelTexture.width;
@@ -408,6 +608,12 @@ public class SandCollector : MonoBehaviour
 
                 Color32 pixel = pixels[texX + texY * texW];
                 int cellType = ClassifyPixel(pixel);
+
+                if (IsGermanyFlagTexture(levelTexture.name) && pixel.a >= 50)
+                {
+                    cellType = RemapGermanyFlagColor(pixel, cellType);
+                }
+
                 grid[x, y] = cellType;
 
                 switch (cellType)
@@ -427,6 +633,33 @@ public class SandCollector : MonoBehaviour
                   $"синій={totalBlueSandCount}, жовтий={totalYellowSandCount}, " +
                   $"червоний={totalRedSandCount}, зелений={totalGreenSandCount}, " +
                   $"оранжевий={totalOrangeSandCount}, білий={totalWhiteSandCount}, чорний={totalBlackSandCount}");
+    }
+
+    private bool IsGermanyFlagTexture(string textureName)
+    {
+        return !string.IsNullOrEmpty(textureName) && textureName.Contains("photo_2026-07-16_00-36-38") ||
+               !string.IsNullOrEmpty(textureName) && textureName.Contains("photo_2026-07-16_00-36-41") ||
+               !string.IsNullOrEmpty(textureName) && textureName.Contains("photo_2026-07-16_00-36-42") ||
+               !string.IsNullOrEmpty(textureName) && textureName.Contains("photo_2026-07-16_00-36-44") ||
+               !string.IsNullOrEmpty(textureName) && textureName.Contains("photo_2026-07-16_00-36-45") ||
+               !string.IsNullOrEmpty(textureName) && textureName.Contains("photo_2026-07-16_00-36-47") ||
+               !string.IsNullOrEmpty(textureName) && textureName.Contains("photo_2026-07-16_00-36-48") ||
+               !string.IsNullOrEmpty(textureName) && textureName.Contains("photo_2026-07-16_00-36-49");
+    }
+
+    private int RemapGermanyFlagColor(Color32 c, int defaultCellType)
+    {
+        if (defaultCellType != ORANGE_SAND)
+            return defaultCellType;
+
+        Color.RGBToHSV(c, out float h, out float s, out float v);
+        if (s < 0.2f || v < 0.15f)
+            return defaultCellType;
+
+        if (h >= 0.05f && h < 0.11f)
+            return RED_SAND;
+
+        return defaultCellType;
     }
 
     private int ClassifyPixel(Color32 c)

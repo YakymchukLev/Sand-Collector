@@ -1,9 +1,16 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class MenuButtonsManager : MonoBehaviour
 {
     [SerializeField] private int fallbackSceneBuildIndex = 1;
+    [SerializeField] private TMP_Text coinsText;
+
+    private void Start()
+    {
+        coinsText.text = GameStats.Coins.ToString();
+    }
 
     public void StartMainGame()
     {

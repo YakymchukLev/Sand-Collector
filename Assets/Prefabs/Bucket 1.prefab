@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 2726971867058563577}
   - component: {fileID: 504872006041869846}
   m_Layer: 6
-  m_Name: Bucket
+  m_Name: Bucket 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -79,7 +79,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
