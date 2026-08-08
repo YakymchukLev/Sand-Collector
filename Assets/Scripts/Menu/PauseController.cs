@@ -26,6 +26,7 @@ public class PauseController : MonoBehaviour
     public void QuitGame()
     {
         Time.timeScale = 1f;
+        HealthSystem.Instance?.ConsumeLife();
         SceneManager.LoadScene("Menu");
     }
 }

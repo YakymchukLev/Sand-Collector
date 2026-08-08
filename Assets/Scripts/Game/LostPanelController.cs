@@ -59,6 +59,7 @@ public class LostPanelController : MonoBehaviour
 
     public void Plus40Coins()
     {
+        Time.timeScale = 1f;
         GameStats.AddCoins(40);
         RefreshCoinDisplay();
         SceneManager.LoadScene("Menu");
@@ -66,6 +67,7 @@ public class LostPanelController : MonoBehaviour
 
     public void Plus80Coins()
     {
+        Time.timeScale = 1f;
         GameStats.AddCoins(80);
         RefreshCoinDisplay();
         SceneManager.LoadScene("Menu");

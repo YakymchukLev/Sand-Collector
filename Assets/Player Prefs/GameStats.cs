@@ -7,12 +7,18 @@ public class GameStats : MonoBehaviour
     private const string CompletedLevelsKey = "CompletedLevels";
     private static int currentLevel = 1;
     private static int coins = 0;
+    private static bool isInitialized;
 
     public static int Coins
     {
-        get => coins;
+        get
+        {
+            EnsureInitialized();
+            return coins;
+        }
         set
         {
+            EnsureInitialized();
             coins = value;
             PlayerPrefs.SetInt(CoinsKey, coins);
             PlayerPrefs.Save();
@@ -21,19 +27,33 @@ public class GameStats : MonoBehaviour
 
     public static int CurrentLevel
     {
-        get => currentLevel;
+        get
+        {
+            EnsureInitialized();
+            return currentLevel;
+        }
         set
         {
+            EnsureInitialized();
             currentLevel = value;
             PlayerPrefs.SetInt(CurrentLevelKey, currentLevel);
             PlayerPrefs.Save();
         }
     }
 
-    private void Awake()
+    private static void EnsureInitialized()
     {
+        if (isInitialized)
+            return;
+
         LoadCurrentLevelFromPrefs();
         LoadCoinsFromPrefs();
+        isInitialized = true;
+    }
+
+    private void Awake()
+    {
+        EnsureInitialized();
     }
 
     public static void LoadCurrentLevelFromPrefs()
@@ -84,6 +104,7 @@ public class GameStats : MonoBehaviour
         currentLevel = 1;
         PlayerPrefs.DeleteKey(CurrentLevelKey);
         PlayerPrefs.Save();
+        isInitialized = true;
     }
 
     public static void ResetCoins()
@@ -91,5 +112,6 @@ public class GameStats : MonoBehaviour
         coins = 0;
         PlayerPrefs.DeleteKey(CoinsKey);
         PlayerPrefs.Save();
+        isInitialized = true;
     }
 }
