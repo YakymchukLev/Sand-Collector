@@ -758,13 +758,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ad17a83e6645ba46bc544cf6da80c55, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 100
-  height: 100
+  width: 70
+  height: 70
   currentBucket: {fileID: 0}
   gateWidth: 100
+  paddingLeft: 0
+  paddingRight: 0
+  paddingTop: 0
+  paddingBottom: 0
   displayRenderer: {fileID: 690894671}
   losePanel: {fileID: 1177142783}
   winPanel: {fileID: 1177142784}
+  onLevelLost:
+    m_PersistentCalls:
+      m_Calls: []
+  onLevelWon:
+    m_PersistentCalls:
+      m_Calls: []
   loseTimerDuration: 5
 --- !u!212 &690894671
 SpriteRenderer:
@@ -830,7 +840,7 @@ Transform:
   m_GameObject: {fileID: 690894669}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.53, z: 0}
+  m_LocalPosition: {x: 0, y: 0.75, z: 0}
   m_LocalScale: {x: 5, y: 5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1856,7 +1866,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 47aa1eca51d7bf84ca8f5393830ac979, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  levelTexture: {fileID: 2800000, guid: cc9a30b85e8e9934f82ef73d5a170c10, type: 3}
+  levelTexture: {fileID: 2800000, guid: ef581df5ff54dba4da14c3258ad1567e, type: 3}
   levelSceneNames:
   - Menu
   - LVL1

@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Events;
 
 public class MenuButtonsManager : MonoBehaviour
 {
@@ -10,6 +11,10 @@ public class MenuButtonsManager : MonoBehaviour
     [Header("Health UI")]
     [SerializeField] private TMP_Text livesText;
     [SerializeField] private TMP_Text timerText;
+    [SerializeField] private GameObject notEnoughLivesPanel;
+
+    [Header("Events")]
+    public UnityEvent onNotEnoughLives;
 
     private void Start()
     {
@@ -51,6 +56,17 @@ public class MenuButtonsManager : MonoBehaviour
 
     public void StartMainGame()
     {
+        if (HealthSystem.Instance != null && !HealthSystem.Instance.CanStartGame())
+        {
+            Debug.Log("Cannot start game: not enough lives.");
+            if (notEnoughLivesPanel != null)
+            {
+                notEnoughLivesPanel.SetActive(true);
+            }
+            onNotEnoughLives?.Invoke();
+            return;
+        }
+
         GameStats.LoadCurrentLevelFromPrefs();
 
         int targetSceneIndex = GameStats.CurrentLevel;
@@ -77,6 +93,7 @@ public class MenuButtonsManager : MonoBehaviour
     public void OpenShop(GameObject shopPanel)
     {
         shopPanel.SetActive(true);
+        notEnoughLivesPanel.SetActive(false);
     }
     
     public void CloseShop(GameObject shopPanel)

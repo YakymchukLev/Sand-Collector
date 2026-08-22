@@ -524,9 +524,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
+  reusable: 0
   bucketColorID: 2
   customButtonSprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
-  customCapacity: 1666
+  customCapacity: 1339
 --- !u!61 &345434857
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -678,9 +679,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
+  reusable: 0
   bucketColorID: 1
   customButtonSprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
-  customCapacity: 1666
+  customCapacity: 545
 --- !u!61 &555163088
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -739,6 +741,7 @@ GameObject:
   - component: {fileID: 690894671}
   - component: {fileID: 690894670}
   - component: {fileID: 690894673}
+  - component: {fileID: 690894674}
   m_Layer: 0
   m_Name: SandArea
   m_TagString: Untagged
@@ -758,13 +761,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ad17a83e6645ba46bc544cf6da80c55, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 100
-  height: 100
+  width: 70
+  height: 70
   currentBucket: {fileID: 0}
   gateWidth: 100
+  collectionHeight: 5
+  paddingLeft: 0
+  paddingRight: 0
+  paddingTop: 0
+  paddingBottom: 0
   displayRenderer: {fileID: 690894671}
   losePanel: {fileID: 1909213930}
   winPanel: {fileID: 521267589851901338}
+  onLevelLost:
+    m_PersistentCalls:
+      m_Calls: []
+  onLevelWon:
+    m_PersistentCalls:
+      m_Calls: []
   loseTimerDuration: 5
 --- !u!212 &690894671
 SpriteRenderer:
@@ -830,7 +844,7 @@ Transform:
   m_GameObject: {fileID: 690894669}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.53, z: 0}
+  m_LocalPosition: {x: 0, y: 0.75, z: 0}
   m_LocalScale: {x: 5, y: 5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -882,6 +896,19 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 0.94737077, y: 0.38795108}
   m_EdgeRadius: 0
+--- !u!114 &690894674
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 690894669}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff68c06dfb6b68c4fa01a82f8da79a5d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  particleSizeMultiplier: 0.4
 --- !u!1 &1038721680
 GameObject:
   m_ObjectHideFlags: 0
@@ -1044,7 +1071,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 21f40be041bd3bb4591dc7d2fcb6c126, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -1071,9 +1098,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
-  bucketColorID: 2
-  customButtonSprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
-  customCapacity: 1667
+  reusable: 0
+  bucketColorID: 4
+  customButtonSprite: {fileID: 21300000, guid: 21f40be041bd3bb4591dc7d2fcb6c126, type: 3}
+  customCapacity: 566
 --- !u!61 &1279000102
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1198,7 +1226,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -1225,9 +1253,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
-  bucketColorID: 2
-  customButtonSprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
-  customCapacity: 1666
+  reusable: 0
+  bucketColorID: 1
+  customButtonSprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
+  customCapacity: 545
 --- !u!61 &1374617633
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1394,7 +1423,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 21f40be041bd3bb4591dc7d2fcb6c126, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -1421,9 +1450,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
-  bucketColorID: 1
-  customButtonSprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
-  customCapacity: 1667
+  reusable: 0
+  bucketColorID: 4
+  customButtonSprite: {fileID: 21300000, guid: 21f40be041bd3bb4591dc7d2fcb6c126, type: 3}
+  customCapacity: 566
 --- !u!61 &1914274352
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1548,7 +1578,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -1575,9 +1605,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
-  bucketColorID: 1
-  customButtonSprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
-  customCapacity: 1666
+  reusable: 0
+  bucketColorID: 2
+  customButtonSprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
+  customCapacity: 1339
 --- !u!61 &1921846639
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1654,7 +1685,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 47aa1eca51d7bf84ca8f5393830ac979, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  levelTexture: {fileID: 2800000, guid: 5f0b5aa813e46f847b60b29c290eb93f, type: 3}
+  levelTexture: {fileID: 2800000, guid: 225822d99f3f7a1408ac98daf624eadd, type: 3}
   levelSceneNames:
   - Menu
   - LVL1
@@ -1782,9 +1813,17 @@ PrefabInstance:
       propertyPath: m_Camera
       value: 
       objectReference: {fileID: 10649529}
+    - target: {fileID: 6253285118127843628, guid: badf3c74346e897498d5e80e0ba50581, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -491.78003
+      objectReference: {fileID: 0}
     - target: {fileID: 6727435930947689221, guid: badf3c74346e897498d5e80e0ba50581, type: 3}
       propertyPath: m_Name
       value: Canvas
+      objectReference: {fileID: 0}
+    - target: {fileID: 8101229973591138111, guid: badf3c74346e897498d5e80e0ba50581, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 154.16003
       objectReference: {fileID: 0}
     - target: {fileID: 8692616098771237656, guid: badf3c74346e897498d5e80e0ba50581, type: 3}
       propertyPath: m_AnchoredPosition.y

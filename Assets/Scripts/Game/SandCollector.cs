@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using UnityEngine.Events;
 
 public class SandCollector : MonoBehaviour
 {
@@ -13,11 +14,23 @@ public class SandCollector : MonoBehaviour
     [Header("Шлюз")]
     [Range(2, 100)]
     public int gateWidth = 10; // Ширина шлюзу. Задайте 100, щоб пісок висипався по всій ширині!
+
+    [Header("Збір піску")]
+    [Tooltip("Висота над відром, з якої воно може забирати пісок, якщо інший колір заважає йому впасти на саме дно")]
+    public int collectionHeight = 5;
+
+    [Header("Область малюнка (Відступи від країв)")]
+    [Tooltip("Зменшує область, в якій генерується пісок з картинки")]
+    public int paddingLeft = 0;
+    public int paddingRight = 0;
+    public int paddingTop = 0;
+    public int paddingBottom = 0;
     
     [Header("Візуалізація")]
     public SpriteRenderer displayRenderer;
 
     private int[,] grid;
+    private Color32[,] cellColors;
     private Texture2D texture;
     private Color32[] colorBuffer;
 
@@ -32,6 +45,10 @@ public class SandCollector : MonoBehaviour
 
     public GameObject losePanel; // Assign LosePanel UI in Inspector
     public GameObject winPanel; // Assign WinPanel UI in Inspector
+
+    [Header("Події завершення рівня")]
+    public UnityEvent onLevelLost;
+    public UnityEvent onLevelWon;
 
     private bool isGameOver = false;
     private bool isLevelCompleted = false;
@@ -82,6 +99,7 @@ public class SandCollector : MonoBehaviour
         isLevelCompleted = false;
 
         grid = new int[width, height];
+        cellColors = new Color32[width, height];
         texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
         texture.filterMode = FilterMode.Point;
         colorBuffer = new Color32[width * height];
@@ -142,12 +160,46 @@ public class SandCollector : MonoBehaviour
         }
     }
 
+    private Color32 GetDefaultColorForType(int cellType)
+    {
+        switch (cellType)
+        {
+            case EMPTY:       return COLOR_EMPTY;
+            case BLUE_SAND:   return COLOR_BLUE;
+            case YELLOW_SAND: return COLOR_YELLOW;
+            case WALL:        return COLOR_WALL;
+            case RED_SAND:    return COLOR_RED;
+            case GREEN_SAND:  return COLOR_GREEN;
+            case ORANGE_SAND: return COLOR_ORANGE;
+            case WHITE_SAND:  return COLOR_WHITE;
+            case BLACK_SAND:  return COLOR_BLACK;
+            default:          return COLOR_EMPTY;
+        }
+    }
+
+    private void MoveCell(int fromX, int fromY, int toX, int toY)
+    {
+        grid[toX, toY] = grid[fromX, fromY];
+        cellColors[toX, toY] = cellColors[fromX, fromY];
+        grid[fromX, fromY] = EMPTY;
+        cellColors[fromX, fromY] = COLOR_EMPTY;
+    }
+
+    private void ClearCell(int x, int y)
+    {
+        grid[x, y] = EMPTY;
+        cellColors[x, y] = COLOR_EMPTY;
+    }
+
     // Створюємо бортики та засипаємо пісок всередину (стандартний рівень без картинки)
     void BuildBordersAndSand()
     {
         for (int x = 0; x < width; x++)
             for (int y = 0; y < height; y++)
+            {
                 grid[x, y] = EMPTY;
+                cellColors[x, y] = COLOR_EMPTY;
+            }
 
         int wallThickness = 4;
         int bottomY = 10;
@@ -156,14 +208,17 @@ public class SandCollector : MonoBehaviour
         {
             for (int y = 0; y < height; y++)
             {
-                if (x < wallThickness) grid[x, y] = WALL;
-                if (x >= width - wallThickness) grid[x, y] = WALL;
+                if (x < wallThickness) { grid[x, y] = WALL; cellColors[x, y] = COLOR_WALL; }
+                if (x >= width - wallThickness) { grid[x, y] = WALL; cellColors[x, y] = COLOR_WALL; }
 
                 if (y >= bottomY && y < bottomY + wallThickness)
                 {
                     int halfGate = gateWidth / 2;
                     if (x < width / 2 - halfGate || x > width / 2 + halfGate)
+                    {
                         grid[x, y] = WALL;
+                        cellColors[x, y] = COLOR_WALL;
+                    }
                 }
             }
         }
@@ -174,11 +229,11 @@ public class SandCollector : MonoBehaviour
         {
             for (int y = bottomY + wallThickness; y < height; y++)
             {
-                if (y > 40 && y < 55)       { grid[x, y] = BLUE_SAND;   totalBlueSandCount++;   currentBlueSandCount++; }
-                else if (y >= 55 && y < 70) { grid[x, y] = YELLOW_SAND; totalYellowSandCount++; currentYellowSandCount++; }
-                else if (y >= 70 && y < 80) { grid[x, y] = RED_SAND;    totalRedSandCount++;    currentRedSandCount++; }
-                else if (y >= 80 && y < 88) { grid[x, y] = GREEN_SAND;  totalGreenSandCount++;  currentGreenSandCount++; }
-                else if (y >= 88 && y < 95) { grid[x, y] = RED_SAND;    totalRedSandCount++;    currentRedSandCount++; }
+                if (y > 40 && y < 55)       { grid[x, y] = BLUE_SAND;   cellColors[x, y] = COLOR_BLUE;   totalBlueSandCount++;   currentBlueSandCount++; }
+                else if (y >= 55 && y < 70) { grid[x, y] = YELLOW_SAND; cellColors[x, y] = COLOR_YELLOW; totalYellowSandCount++; currentYellowSandCount++; }
+                else if (y >= 70 && y < 80) { grid[x, y] = RED_SAND;    cellColors[x, y] = COLOR_RED;    totalRedSandCount++;    currentRedSandCount++; }
+                else if (y >= 80 && y < 88) { grid[x, y] = GREEN_SAND;  cellColors[x, y] = COLOR_GREEN;  totalGreenSandCount++;  currentGreenSandCount++; }
+                else if (y >= 88 && y < 95) { grid[x, y] = RED_SAND;    cellColors[x, y] = COLOR_RED;    totalRedSandCount++;    currentRedSandCount++; }
             }
         }
 
@@ -197,12 +252,23 @@ public class SandCollector : MonoBehaviour
             Bucket bucketAtPos = GetBucketAtGridX(x);
             if (bucketAtPos != null)
             {
-                if (bucketAtPos.AddSand(currentCell))
+                if (bucketAtPos.AddSand(currentCell, cellColors[x, 0]))
                 {
-                    grid[x, 0] = EMPTY;
+                    if (SandVisuals.Instance != null)
+                    {
+                        Bounds bounds = displayRenderer.bounds;
+                        float spriteWorldWidth = bounds.size.x;
+                        float worldX = bounds.min.x + ((float)x / width) * spriteWorldWidth;
+                        float worldY = bounds.min.y;
+                        Vector3 startPos = new Vector3(worldX, worldY, displayRenderer.transform.position.z - 0.1f);
+                        float visualScale = (spriteWorldWidth / width) * 100f;
+                        SandVisuals.Instance.SpawnFlyingSand(startPos, bucketAtPos.transform, cellColors[x, 0], visualScale);
+                    }
+
+                    ClearCell(x, 0);
                     DecrementSandCount(currentCell);
 
-                    if (!IsAnySandOfColorLeft(currentCell))
+                    if (!IsAnySandOfColorLeft(bucketAtPos.targetColorID))
                         bucketAtPos.ForceFull();
 
                     CheckRemainingSand();
@@ -221,8 +287,7 @@ public class SandCollector : MonoBehaviour
                 // Спроба впасти вниз
                 if (grid[x, y - 1] == EMPTY)
                 {
-                    grid[x, y - 1] = currentCell;
-                    grid[x, y] = EMPTY;
+                    MoveCell(x, y, x, y - 1);
                 }
                 else
                 {
@@ -230,33 +295,45 @@ public class SandCollector : MonoBehaviour
                     if (checkLeftFirst)
                     {
                         if (x > 0 && grid[x - 1, y - 1] == EMPTY)
-                        { grid[x - 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
+                        { MoveCell(x, y, x - 1, y - 1); }
                         else if (x < width - 1 && grid[x + 1, y - 1] == EMPTY)
-                        { grid[x + 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
+                        { MoveCell(x, y, x + 1, y - 1); }
                     }
                     else
                     {
                         if (x < width - 1 && grid[x + 1, y - 1] == EMPTY)
-                        { grid[x + 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
+                        { MoveCell(x, y, x + 1, y - 1); }
                         else if (x > 0 && grid[x - 1, y - 1] == EMPTY)
-                        { grid[x - 1, y - 1] = currentCell; grid[x, y] = EMPTY; }
+                        { MoveCell(x, y, x - 1, y - 1); }
                     }
                 }
 
-                // Якщо піщинка тепер на найнижчому рядку (y=1 впала на y=0), 
-                // або якщо вона стоїть і не може впасти — спробуємо зібрати відерцем
-                if (y == 1 && grid[x, y] == currentCell)
+                // Якщо піщинка тепер знаходиться в межах висоти збору (collectionHeight), 
+                // і якщо вона стоїть і не може впасти — спробуємо зібрати відерцем
+                if (y <= collectionHeight && grid[x, y] == currentCell)
                 {
                     // Піщинка не змогла впасти — вона застрягла, спробуємо зібрати
                     Bucket bucketAtPos = GetBucketAtGridX(x);
                     if (bucketAtPos != null)
                     {
-                        if (bucketAtPos.AddSand(currentCell))
+                        if (bucketAtPos.AddSand(currentCell, cellColors[x, y]))
                         {
-                            grid[x, y] = EMPTY;
+                            if (SandVisuals.Instance != null)
+                            {
+                                Bounds bounds = displayRenderer.bounds;
+                                float spriteWorldWidth = bounds.size.x;
+                                float spriteWorldHeight = bounds.size.y;
+                                float worldX = bounds.min.x + ((float)x / width) * spriteWorldWidth;
+                                float worldY = bounds.min.y + ((float)y / height) * spriteWorldHeight;
+                                Vector3 startPos = new Vector3(worldX, worldY, displayRenderer.transform.position.z - 0.1f);
+                                float visualScale = (spriteWorldWidth / width) * 100f;
+                                SandVisuals.Instance.SpawnFlyingSand(startPos, bucketAtPos.transform, cellColors[x, y], visualScale);
+                            }
+
+                            ClearCell(x, y);
                             DecrementSandCount(currentCell);
 
-                            if (!IsAnySandOfColorLeft(currentCell))
+                            if (!IsAnySandOfColorLeft(bucketAtPos.targetColorID))
                                 bucketAtPos.ForceFull();
 
                             CheckRemainingSand();
@@ -274,18 +351,7 @@ public class SandCollector : MonoBehaviour
             for (int x = 0; x < width; x++)
             {
                 int pixelIndex = x + y * width;
-                switch (grid[x, y])
-                {
-                    case EMPTY:       colorBuffer[pixelIndex] = COLOR_EMPTY;  break;
-                    case BLUE_SAND:   colorBuffer[pixelIndex] = COLOR_BLUE;   break;
-                    case YELLOW_SAND: colorBuffer[pixelIndex] = COLOR_YELLOW; break;
-                    case WALL:        colorBuffer[pixelIndex] = COLOR_WALL;   break;
-                    case RED_SAND:    colorBuffer[pixelIndex] = COLOR_RED;    break;
-                    case GREEN_SAND:  colorBuffer[pixelIndex] = COLOR_GREEN;  break;
-                    case ORANGE_SAND: colorBuffer[pixelIndex] = COLOR_ORANGE; break;
-                    case WHITE_SAND:  colorBuffer[pixelIndex] = COLOR_WHITE;  break;
-                    case BLACK_SAND:  colorBuffer[pixelIndex] = COLOR_BLACK;  break;
-                }
+                colorBuffer[pixelIndex] = cellColors[x, y];
             }
         }
 
@@ -437,6 +503,19 @@ public class SandCollector : MonoBehaviour
         isGameOver = true;
         Debug.Log("Game Over: All bucket slots occupied and none filled within time limit.");
 
+        if (HealthSystem.Instance != null)
+        {
+            Debug.Log($"TriggerGameOver: HealthSystem знайшли, віднімаємо життя. Життів до: {HealthSystem.Instance.CurrentLives}");
+            HealthSystem.Instance.ConsumeLife();
+            Debug.Log($"TriggerGameOver: Життів після: {HealthSystem.Instance.CurrentLives}");
+        }
+        else
+        {
+            Debug.LogError("TriggerGameOver: HealthSystem.Instance дорівнює NULL! Життя не віднімається (можливо, ви запустили рівень напряму, оминувши головне меню).");
+        }
+        
+        onLevelLost?.Invoke();
+
         // Вмикаємо панель програшу
         if (losePanel != null)
         {
@@ -507,6 +586,8 @@ public class SandCollector : MonoBehaviour
         isGameOver = true;
         isLevelCompleted = true;
         DisableGameplayForCompletion();
+
+        onLevelWon?.Invoke();
 
         if (losePanel != null)
         {
@@ -595,26 +676,50 @@ public class SandCollector : MonoBehaviour
         isLevelCompleted = false;
         ResetLoseTimer();
 
-        Color32[] pixels = levelTexture.GetPixels32();
+        Texture2D readableTexture = MakeTextureReadable(levelTexture);
+        Color32[] pixels = readableTexture.GetPixels32();
         int texW = levelTexture.width;
         int texH = levelTexture.height;
+
+        int drawWidth = Mathf.Max(1, width - paddingLeft - paddingRight);
+        int drawHeight = Mathf.Max(1, height - paddingBottom - paddingTop);
 
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
-                int texX = Mathf.Clamp(Mathf.RoundToInt((float)x / width * texW), 0, texW - 1);
-                int texY = Mathf.Clamp(Mathf.RoundToInt((float)y / height * texH), 0, texH - 1);
+                int cellType = EMPTY;
+                Color32 pixel = COLOR_EMPTY;
 
-                Color32 pixel = pixels[texX + texY * texW];
-                int cellType = ClassifyPixel(pixel);
-
-                if (IsGermanyFlagTexture(levelTexture.name) && pixel.a >= 50)
+                // Перевіряємо, чи піксель знаходиться всередині дозволеної області (з урахуванням відступів)
+                if (x >= paddingLeft && x < width - paddingRight &&
+                    y >= paddingBottom && y < height - paddingTop)
                 {
-                    cellType = RemapGermanyFlagColor(pixel, cellType);
+                    int localX = x - paddingLeft;
+                    int localY = y - paddingBottom;
+
+                    int texX = Mathf.Clamp(Mathf.RoundToInt((float)localX / drawWidth * texW), 0, texW - 1);
+                    int texY = Mathf.Clamp(Mathf.RoundToInt((float)localY / drawHeight * texH), 0, texH - 1);
+
+                    pixel = pixels[texX + texY * texW];
+                    cellType = ClassifyPixel(pixel);
+
+                    if (IsGermanyFlagTexture(levelTexture.name) && pixel.a >= 50)
+                    {
+                        cellType = RemapGermanyFlagColor(pixel, cellType);
+                    }
                 }
 
                 grid[x, y] = cellType;
+                
+                if (cellType == EMPTY)
+                {
+                    cellColors[x, y] = COLOR_EMPTY;
+                }
+                else
+                {
+                    cellColors[x, y] = pixel;
+                }
 
                 switch (cellType)
                 {
@@ -628,6 +733,86 @@ public class SandCollector : MonoBehaviour
                 }
             }
         }
+
+        // --- Фільтрація шумів (кольори, яких менше 50 пікселів, замінюються на найпопулярніший) ---
+        int maxCount = 0;
+        int dominantColor = EMPTY;
+        
+        int[] counts = new int[] { 
+            0, totalBlueSandCount, totalYellowSandCount, 0, totalRedSandCount, 
+            totalGreenSandCount, totalOrangeSandCount, totalWhiteSandCount, totalBlackSandCount 
+        };
+        
+        for (int i = 1; i <= 8; i++)
+        {
+            if (i == WALL) continue;
+            if (counts[i] > maxCount)
+            {
+                maxCount = counts[i];
+                dominantColor = i;
+            }
+        }
+
+        if (dominantColor != EMPTY)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    int cell = grid[x, y];
+                    if (cell != EMPTY && cell != WALL && counts[cell] > 0 && counts[cell] < 50)
+                    {
+                        // Віднімаємо від шумового
+                        switch (cell)
+                        {
+                            case BLUE_SAND:   totalBlueSandCount--;   currentBlueSandCount--;   break;
+                            case YELLOW_SAND: totalYellowSandCount--; currentYellowSandCount--; break;
+                            case RED_SAND:    totalRedSandCount--;    currentRedSandCount--;    break;
+                            case GREEN_SAND:  totalGreenSandCount--;  currentGreenSandCount--;  break;
+                            case ORANGE_SAND: totalOrangeSandCount--; currentOrangeSandCount--; break;
+                            case WHITE_SAND:  totalWhiteSandCount--;  currentWhiteSandCount--;  break;
+                            case BLACK_SAND:  totalBlackSandCount--;  currentBlackSandCount--;  break;
+                        }
+                        
+                        grid[x, y] = dominantColor;
+                        
+                        // Додаємо до домінантного
+                        switch (dominantColor)
+                        {
+                            case BLUE_SAND:   
+                                totalBlueSandCount++; currentBlueSandCount++; 
+                                cellColors[x, y] = COLOR_BLUE; 
+                                break;
+                            case YELLOW_SAND: 
+                                totalYellowSandCount++; currentYellowSandCount++; 
+                                cellColors[x, y] = COLOR_YELLOW; 
+                                break;
+                            case RED_SAND:    
+                                totalRedSandCount++; currentRedSandCount++; 
+                                cellColors[x, y] = COLOR_RED; 
+                                break;
+                            case GREEN_SAND:  
+                                totalGreenSandCount++; currentGreenSandCount++; 
+                                cellColors[x, y] = COLOR_GREEN; 
+                                break;
+                            case ORANGE_SAND: 
+                                totalOrangeSandCount++; currentOrangeSandCount++; 
+                                cellColors[x, y] = COLOR_ORANGE; 
+                                break;
+                            case WHITE_SAND:  
+                                totalWhiteSandCount++; currentWhiteSandCount++; 
+                                cellColors[x, y] = COLOR_WHITE; 
+                                break;
+                            case BLACK_SAND:  
+                                totalBlackSandCount++; currentBlackSandCount++; 
+                                cellColors[x, y] = COLOR_BLACK; 
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+        // -----------------------------------------------------------------------------------------
 
         Debug.Log($"Рівень '{levelTexture.name}' завантажено: " +
                   $"синій={totalBlueSandCount}, жовтий={totalYellowSandCount}, " +
@@ -656,7 +841,7 @@ public class SandCollector : MonoBehaviour
         if (s < 0.2f || v < 0.15f)
             return defaultCellType;
 
-        if (h >= 0.05f && h < 0.11f)
+        if (h >= 0.05f && h < 0.09f)
             return RED_SAND;
 
         return defaultCellType;
@@ -682,11 +867,45 @@ public class SandCollector : MonoBehaviour
 
         // 4. Класифікація кольорових пікселів за відтінком (Hue)
         if (h < 0.05f || h > 0.90f) return RED_SAND;
-        if (h >= 0.05f && h < 0.11f) return ORANGE_SAND;
-        if (h >= 0.11f && h < 0.22f) return YELLOW_SAND;
+        if (h >= 0.05f && h < 0.09f) return ORANGE_SAND;
+        if (h >= 0.09f && h < 0.22f) return YELLOW_SAND;
         if (h >= 0.22f && h < 0.45f) return GREEN_SAND;
         if (h >= 0.45f && h <= 0.90f) return BLUE_SAND;
 
         return WALL; // Резервний варіант
+    }
+
+    /// <summary>
+    /// Повертає readable копію текстури.
+    /// Потрібно, якщо в Import Settings не увімкнено "Read/Write Enabled".
+    /// </summary>
+    private Texture2D MakeTextureReadable(Texture2D source)
+    {
+        // Спочатку намагаємось прочитати без копіювання
+        try
+        {
+            source.GetPixels32();
+            return source; // вже readable
+        }
+        catch { /* не readable — продовжуємо */ }
+
+        // Копіюємо через RenderTexture
+        RenderTexture rt = RenderTexture.GetTemporary(
+            source.width, source.height, 0,
+            RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+
+        Graphics.Blit(source, rt);
+
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture.active = rt;
+
+        Texture2D readableTexture = new Texture2D(source.width, source.height);
+        readableTexture.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+        readableTexture.Apply();
+
+        RenderTexture.active = previous;
+        RenderTexture.ReleaseTemporary(rt);
+
+        return readableTexture;
     }
 }

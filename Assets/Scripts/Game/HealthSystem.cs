@@ -131,6 +131,7 @@ public class HealthSystem : MonoBehaviour
     // Викликайте цей метод безпосередньо перед завантаженням сцени меню
     public void ConsumeLife()
     {
+        Debug.Log($"HealthSystem: ConsumeLife викликано. Поточні життя: {currentLives}");
         if (currentLives == MAX_LIVES)
         {
             nextRegenTime = DateTime.Now.AddSeconds(TIME_TO_REGEN_SECONDS);
@@ -140,5 +141,6 @@ public class HealthSystem : MonoBehaviour
         if (currentLives < 0) currentLives = 0;
         
         SaveSystem();
+        Debug.Log($"HealthSystem: Життя збережено. Залишилось: {currentLives}");
     }
 }

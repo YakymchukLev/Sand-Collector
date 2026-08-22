@@ -8,6 +8,9 @@ public class BucketSpawnerButton : MonoBehaviour
     public float clickScaleMultiplier = 0.95f;
     public float animationSpeed = 10f;
     public float disableDuration = 5f; // Час, на який кнопка вимикається після використання
+    
+    [Header("Поведінка")]
+    public bool reusable = false; // Якщо false, кнопка натискається лише один раз за рівень
 
     [Header("Налаштування кольору відерця")]
     public int bucketColorID = 1; // 1 - синій, 2 - жовтий
@@ -168,7 +171,11 @@ public class BucketSpawnerButton : MonoBehaviour
             buttonCollider.enabled = false;
 
         CancelInvoke(nameof(EnableButton));
-        Invoke(nameof(EnableButton), disableDuration);
+        
+        if (reusable)
+        {
+            Invoke(nameof(EnableButton), disableDuration);
+        }
     }
 
     public void DisableForGameOver()

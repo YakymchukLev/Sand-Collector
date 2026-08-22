@@ -2,11 +2,29 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.Events;
 
 public class LostPanelController : MonoBehaviour
 {
+    [Header("Health UI")]
+    [SerializeField] private GameObject notEnoughLivesPanel;
+
+    [Header("Events")]
+    public UnityEvent onNotEnoughLives;
+
     public void RestartScene()
     {
+        if (HealthSystem.Instance != null && !HealthSystem.Instance.CanStartGame())
+        {
+            Debug.Log("Cannot restart game: not enough lives.");
+            if (notEnoughLivesPanel != null)
+            {
+                notEnoughLivesPanel.SetActive(true);
+            }
+            onNotEnoughLives?.Invoke();
+            return;
+        }
+
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }

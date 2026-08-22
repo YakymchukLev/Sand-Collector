@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 
 public class Bucket : MonoBehaviour
 {
@@ -10,6 +11,11 @@ public class Bucket : MonoBehaviour
 
     public float destroyDelay = 1.5f;
     public float returnDelay = 4f;
+
+    [Header("UI")]
+    [Tooltip("Текст, в якому відображається відсоток заповненості")]
+    public TMP_Text percentageText;
+    private int lastDisplayedPercentage = -1;
 
     [Header("Спрайти відерця")]
     public Sprite blueBucketSprite;
@@ -34,8 +40,13 @@ public class Bucket : MonoBehaviour
     void Start()
     {
         startPosition = transform.position;
+        if (percentageText == null)
+        {
+            percentageText = GetComponentInChildren<TMP_Text>();
+        }
         SetCapacityFromSandCount();
         UpdateBucketVisuals();
+        UpdateBucketUI();
     }
 
     void Update()
@@ -159,6 +170,7 @@ public class Bucket : MonoBehaviour
         if (isFull) return;
         isFull = true;
         currentSandCount = capacity;
+        UpdateBucketUI();
         OnBucketFull();
     }
 
@@ -222,6 +234,19 @@ public class Bucket : MonoBehaviour
         sr.color = GetBucketColorForTarget();
     }
 
+    private void UpdateBucketUI()
+    {
+        if (percentageText == null) return;
+        
+        int currentPercentage = Mathf.RoundToInt(GetFillPercentage());
+        if (currentPercentage != lastDisplayedPercentage)
+        {
+            lastDisplayedPercentage = currentPercentage;
+            // SetText без виділення пам'яті для рядка (оптимізовано)
+            percentageText.SetText("{0:0}%", currentPercentage);
+        }
+    }
+
     public void SetTargetColorID(int colorID, bool overrideExisting = false, Sprite customSprite = null, int customCapacity = 0)
     {
         if (!overrideExisting && targetColorID != 0)
@@ -240,13 +265,22 @@ public class Bucket : MonoBehaviour
     }
 
     // Метод, який викликає симуляція піску, коли піщинка падає у відерце
-    public bool AddSand(int colorID)
+    public bool AddSand(int colorID, Color32 sandColor)
     {
         if (isFull) return false;
 
-        if (colorID == targetColorID)
+        bool isMatch = (colorID == targetColorID);
+
+        if (!isMatch)
+        {
+            isMatch = IsColorShadeOfTarget(sandColor);
+        }
+
+        if (isMatch)
         {
             currentSandCount++;
+            UpdateBucketUI();
+            
             float percentage = GetFillPercentage();
             Debug.Log($"Відерце {targetColorID} заповнено: {percentage:F0}% ({currentSandCount}/{capacity})");
 
@@ -263,6 +297,29 @@ public class Bucket : MonoBehaviour
             // Тут можна додати штраф або візуальний ефект помилки
             return false;
         }
+    }
+
+    private bool IsColorShadeOfTarget(Color32 sandColor)
+    {
+        // Біле (7) та Чорне (8) відра не мають "кольорових" відтінків у цьому розумінні
+        if (targetColorID == 7 || targetColorID == 8) return false;
+
+        // Повністю прозорий пісок або абсолютно безбарвний ігноруємо
+        if (sandColor.a < 50) return false;
+
+        Color.RGBToHSV(sandColor, out float h, out float s, out float v);
+        
+        // Якщо насиченість майже нульова, це сірий/білий/чорний колір, а не відтінок нашого кольору
+        if (s < 0.05f) return false;
+
+        int hueClassification = 0;
+        if (h < 0.05f || h > 0.90f) hueClassification = 4; // RED
+        else if (h >= 0.05f && h < 0.09f) hueClassification = 6; // ORANGE
+        else if (h >= 0.09f && h < 0.22f) hueClassification = 2; // YELLOW
+        else if (h >= 0.22f && h < 0.45f) hueClassification = 5; // GREEN
+        else if (h >= 0.45f && h <= 0.90f) hueClassification = 1; // BLUE
+
+        return hueClassification == targetColorID;
     }
 
     void OnBucketFull()
