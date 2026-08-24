@@ -847,6 +847,7 @@ GameObject:
   - component: {fileID: 690894671}
   - component: {fileID: 690894670}
   - component: {fileID: 690894673}
+  - component: {fileID: 690894674}
   m_Layer: 0
   m_Name: SandArea
   m_TagString: Untagged
@@ -871,11 +872,14 @@ MonoBehaviour:
   currentBucket: {fileID: 0}
   gateWidth: 100
   collectionHeight: 5
+  noiseThreshold: 150
+  minWallIslandSize: 50
   paddingLeft: 0
   paddingRight: 0
   paddingTop: 0
   paddingBottom: 0
   displayRenderer: {fileID: 690894671}
+  activeBucketsList: []
   losePanel: {fileID: 1216986817}
   winPanel: {fileID: 474144188}
   onLevelLost:
@@ -1001,6 +1005,19 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 0.94737077, y: 0.38795108}
   m_EdgeRadius: 0
+--- !u!114 &690894674
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 690894669}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff68c06dfb6b68c4fa01a82f8da79a5d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  particleSizeMultiplier: 0.4
 --- !u!1 &1038721680
 GameObject:
   m_ObjectHideFlags: 0

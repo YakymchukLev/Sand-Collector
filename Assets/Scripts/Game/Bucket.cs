@@ -118,16 +118,27 @@ public class Bucket : MonoBehaviour
         // Подвоюємо дільник, щоб об'єм відра став удвічі меншим
         float effectiveDivisor = capacityDivisor * 2f;
 
+        int maxCapacity = 1;
         switch (targetColorID)
         {
-            case 1: capacity = Mathf.CeilToInt(SandCollector.totalBlueSandCount   / effectiveDivisor); break;
-            case 2: capacity = Mathf.CeilToInt(SandCollector.totalYellowSandCount / effectiveDivisor); break;
-            case 4: capacity = Mathf.CeilToInt(SandCollector.totalRedSandCount    / effectiveDivisor); break;
-            case 5: capacity = Mathf.CeilToInt(SandCollector.totalGreenSandCount  / effectiveDivisor); break;
-            case 6: capacity = Mathf.CeilToInt(SandCollector.totalOrangeSandCount / effectiveDivisor); break;
-            case 7: capacity = Mathf.CeilToInt(SandCollector.totalWhiteSandCount  / effectiveDivisor); break;
-            case 8: capacity = Mathf.CeilToInt(SandCollector.totalBlackSandCount  / effectiveDivisor); break;
+            case 1: maxCapacity = Mathf.CeilToInt(SandCollector.totalBlueSandCount   / effectiveDivisor); break;
+            case 2: maxCapacity = Mathf.CeilToInt(SandCollector.totalYellowSandCount / effectiveDivisor); break;
+            case 4: maxCapacity = Mathf.CeilToInt(SandCollector.totalRedSandCount    / effectiveDivisor); break;
+            case 5: maxCapacity = Mathf.CeilToInt(SandCollector.totalGreenSandCount  / effectiveDivisor); break;
+            case 6: maxCapacity = Mathf.CeilToInt(SandCollector.totalOrangeSandCount / effectiveDivisor); break;
+            case 7: maxCapacity = Mathf.CeilToInt(SandCollector.totalWhiteSandCount  / effectiveDivisor); break;
+            case 8: maxCapacity = Mathf.CeilToInt(SandCollector.totalBlackSandCount  / effectiveDivisor); break;
         }
+
+        capacity = maxCapacity;
+
+        // Clamp to current remaining sand so the last bucket perfectly fills without forcing
+        int remainingSand = SandCollector.Instance.GetCurrentSandCount(targetColorID);
+        if (capacity > remainingSand && remainingSand > 0)
+        {
+            capacity = remainingSand;
+        }
+
         if (capacity < 1) capacity = 1;
     }
 

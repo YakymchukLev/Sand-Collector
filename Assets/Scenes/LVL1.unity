@@ -682,7 +682,7 @@ MonoBehaviour:
   reusable: 0
   bucketColorID: 1
   customButtonSprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
-  customCapacity: 545
+  customCapacity: 546
 --- !u!61 &555163088
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -766,11 +766,14 @@ MonoBehaviour:
   currentBucket: {fileID: 0}
   gateWidth: 100
   collectionHeight: 5
+  noiseThreshold: 150
+  minWallIslandSize: 50
   paddingLeft: 0
   paddingRight: 0
   paddingTop: 0
   paddingBottom: 0
   displayRenderer: {fileID: 690894671}
+  activeBucketsList: []
   losePanel: {fileID: 1909213930}
   winPanel: {fileID: 521267589851901338}
   onLevelLost:
@@ -1256,7 +1259,7 @@ MonoBehaviour:
   reusable: 0
   bucketColorID: 1
   customButtonSprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
-  customCapacity: 545
+  customCapacity: 546
 --- !u!61 &1374617633
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1333,10 +1336,10 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1374617630}
-  - {fileID: 1921846636}
-  - {fileID: 1279000099}
   - {fileID: 555163085}
+  - {fileID: 1921846636}
   - {fileID: 345434854}
+  - {fileID: 1279000099}
   - {fileID: 1914274349}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

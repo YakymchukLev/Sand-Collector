@@ -475,6 +475,21 @@ public class SandCollector : MonoBehaviour
         }
     }
 
+    public int GetCurrentSandCount(int colorID)
+    {
+        switch (colorID)
+        {
+            case BLUE_SAND:   return currentBlueSandCount;
+            case YELLOW_SAND: return currentYellowSandCount;
+            case RED_SAND:    return currentRedSandCount;
+            case GREEN_SAND:  return currentGreenSandCount;
+            case ORANGE_SAND: return currentOrangeSandCount;
+            case WHITE_SAND:  return currentWhiteSandCount;
+            case BLACK_SAND:  return currentBlackSandCount;
+            default: return 0;
+        }
+    }
+
     public bool IsAnySandOfColorLeft(int colorID)
     {
         switch (colorID)
