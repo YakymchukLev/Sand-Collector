@@ -497,7 +497,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 347a2e36616f36d4bb0ab1d42f772792, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -524,9 +524,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
-  bucketColorID: 1
-  customButtonSprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
-  customCapacity: 1650
+  reusable: 0
+  bucketColorID: 7
+  customButtonSprite: {fileID: 21300000, guid: 347a2e36616f36d4bb0ab1d42f772792, type: 3}
+  customCapacity: 1012
 --- !u!61 &345434857
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -678,9 +679,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
+  reusable: 0
   bucketColorID: 4
   customButtonSprite: {fileID: 21300000, guid: 21f40be041bd3bb4591dc7d2fcb6c126, type: 3}
-  customCapacity: 1650
+  customCapacity: 608
 --- !u!61 &555163088
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -762,6 +764,7 @@ MonoBehaviour:
   height: 70
   currentBucket: {fileID: 0}
   gateWidth: 100
+  collectionHeight: 5
   paddingLeft: 0
   paddingRight: 0
   paddingTop: 0
@@ -1164,9 +1167,17 @@ PrefabInstance:
       propertyPath: m_Camera
       value: 
       objectReference: {fileID: 10649529}
+    - target: {fileID: 6253285118127843628, guid: badf3c74346e897498d5e80e0ba50581, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -491.78003
+      objectReference: {fileID: 0}
     - target: {fileID: 6727435930947689221, guid: badf3c74346e897498d5e80e0ba50581, type: 3}
       propertyPath: m_Name
       value: Canvas
+      objectReference: {fileID: 0}
+    - target: {fileID: 8101229973591138111, guid: badf3c74346e897498d5e80e0ba50581, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 154.16003
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1288,9 +1299,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
+  reusable: 0
   bucketColorID: 2
   customButtonSprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
-  customCapacity: 1699
+  customCapacity: 707
 --- !u!61 &1279000102
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1415,7 +1427,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 21f40be041bd3bb4591dc7d2fcb6c126, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 1162c101c51dbed46a262c39c5d5b041, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -1442,9 +1454,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
-  bucketColorID: 4
-  customButtonSprite: {fileID: 21300000, guid: 21f40be041bd3bb4591dc7d2fcb6c126, type: 3}
-  customCapacity: 1650
+  reusable: 0
+  bucketColorID: 5
+  customButtonSprite: {fileID: 21300000, guid: 1162c101c51dbed46a262c39c5d5b041, type: 3}
+  customCapacity: 855
 --- !u!61 &1374617633
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1521,10 +1534,10 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1374617630}
-  - {fileID: 1921846636}
-  - {fileID: 1279000099}
   - {fileID: 555163085}
+  - {fileID: 1921846636}
   - {fileID: 345434854}
+  - {fileID: 1279000099}
   - {fileID: 1914274349}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1633,9 +1646,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
+  reusable: 0
   bucketColorID: 2
   customButtonSprite: {fileID: 21300000, guid: 7ec4c15d4c2f682419106aafd13a1a70, type: 3}
-  customCapacity: 1698
+  customCapacity: 707
 --- !u!61 &1914274352
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1760,7 +1774,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 347a2e36616f36d4bb0ab1d42f772792, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -1787,9 +1801,10 @@ MonoBehaviour:
   clickScaleMultiplier: 0.95
   animationSpeed: 10
   disableDuration: 5
-  bucketColorID: 1
-  customButtonSprite: {fileID: 21300000, guid: 49915b6ede26697428832d13e047b35d, type: 3}
-  customCapacity: 1650
+  reusable: 0
+  bucketColorID: 7
+  customButtonSprite: {fileID: 21300000, guid: 347a2e36616f36d4bb0ab1d42f772792, type: 3}
+  customCapacity: 1011
 --- !u!61 &1921846639
 BoxCollider2D:
   m_ObjectHideFlags: 0

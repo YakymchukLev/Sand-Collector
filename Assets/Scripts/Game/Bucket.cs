@@ -33,17 +33,27 @@ public class Bucket : MonoBehaviour
     private int currentSandCount = 0;
     // Expose bucket fullness state for lose condition
     public bool IsFull => isFull;
+    public float lastSandTime = -100f;
     private Vector3 startPosition;
     private bool isFull = false;
     private bool isGameOverDisabled = false;
 
     void Start()
     {
+        transform.localScale = Vector3.zero;
+        StartCoroutine(AppearRoutine());
+
         startPosition = transform.position;
         if (percentageText == null)
         {
             percentageText = GetComponentInChildren<TMP_Text>();
         }
+        
+        if (SandCollector.Instance != null && !SandCollector.Instance.activeBucketsList.Contains(this))
+        {
+            SandCollector.Instance.activeBucketsList.Add(this);
+        }
+
         SetCapacityFromSandCount();
         UpdateBucketVisuals();
         UpdateBucketUI();
@@ -146,17 +156,82 @@ public class Bucket : MonoBehaviour
     public void RemoveFromScene(bool immediate = false)
     {
         if (gameObject == null) return;
-
-        enabled = false;
-
-        Collider2D collider = GetComponent<Collider2D>();
-        if (collider != null)
+        
+        if (SandCollector.Instance != null && SandCollector.Instance.activeBucketsList.Contains(this))
         {
-            collider.enabled = false;
+            SandCollector.Instance.activeBucketsList.Remove(this);
         }
 
-        gameObject.SetActive(false);
-        Destroy(gameObject, immediate ? 0f : destroyDelay);
+        enabled = false;
+        Collider2D collider = GetComponent<Collider2D>();
+        if (collider != null) collider.enabled = false;
+        
+        if (immediate)
+        {
+            gameObject.SetActive(false);
+            Destroy(gameObject);
+        }
+        else
+        {
+            StartCoroutine(DisappearRoutine(true));
+        }
+    }
+
+    private System.Collections.IEnumerator AppearRoutine()
+    {
+        float duration1 = 0.25f;
+        float duration2 = 0.15f;
+        float targetScale = 0.05f;
+        float overshootScale = targetScale * 1.2f; // 0.06f
+
+        float time = 0f;
+        while (time < duration1)
+        {
+            time += Time.deltaTime;
+            float t = time / duration1;
+            t = Mathf.Sin(t * Mathf.PI * 0.5f); // Ease out
+            float s = Mathf.Lerp(0f, overshootScale, t);
+            transform.localScale = new Vector3(s, s, s);
+            yield return null;
+        }
+
+        time = 0f;
+        while (time < duration2)
+        {
+            time += Time.deltaTime;
+            float t = time / duration2;
+            t = t * t * (3f - 2f * t); // Smoothstep
+            float s = Mathf.Lerp(overshootScale, targetScale, t);
+            transform.localScale = new Vector3(s, s, s);
+            yield return null;
+        }
+
+        transform.localScale = new Vector3(targetScale, targetScale, targetScale);
+    }
+
+    private System.Collections.IEnumerator DisappearRoutine(bool destroyAfter)
+    {
+        float duration = 0.25f;
+        Vector3 initialScale = transform.localScale;
+
+        float time = 0f;
+        while (time < duration)
+        {
+            time += Time.deltaTime;
+            float t = time / duration;
+            t = 1f - Mathf.Cos(t * Mathf.PI * 0.5f); // Ease in
+            float s = Mathf.Lerp(initialScale.x, 0f, t);
+            transform.localScale = new Vector3(s, s, s);
+            yield return null;
+        }
+
+        transform.localScale = Vector3.zero;
+
+        if (destroyAfter)
+        {
+            gameObject.SetActive(false);
+            Destroy(gameObject);
+        }
     }
 
     private void ReturnToStart()
@@ -271,13 +346,9 @@ public class Bucket : MonoBehaviour
 
         bool isMatch = (colorID == targetColorID);
 
-        if (!isMatch)
-        {
-            isMatch = IsColorShadeOfTarget(sandColor);
-        }
-
         if (isMatch)
         {
+            lastSandTime = Time.time;
             currentSandCount++;
             UpdateBucketUI();
             
@@ -287,6 +358,7 @@ public class Bucket : MonoBehaviour
             if (currentSandCount >= capacity)
             {
                 isFull = true;
+                UpdateBucketUI();
                 OnBucketFull();
             }
             return true;
@@ -297,29 +369,6 @@ public class Bucket : MonoBehaviour
             // Тут можна додати штраф або візуальний ефект помилки
             return false;
         }
-    }
-
-    private bool IsColorShadeOfTarget(Color32 sandColor)
-    {
-        // Біле (7) та Чорне (8) відра не мають "кольорових" відтінків у цьому розумінні
-        if (targetColorID == 7 || targetColorID == 8) return false;
-
-        // Повністю прозорий пісок або абсолютно безбарвний ігноруємо
-        if (sandColor.a < 50) return false;
-
-        Color.RGBToHSV(sandColor, out float h, out float s, out float v);
-        
-        // Якщо насиченість майже нульова, це сірий/білий/чорний колір, а не відтінок нашого кольору
-        if (s < 0.05f) return false;
-
-        int hueClassification = 0;
-        if (h < 0.05f || h > 0.90f) hueClassification = 4; // RED
-        else if (h >= 0.05f && h < 0.09f) hueClassification = 6; // ORANGE
-        else if (h >= 0.09f && h < 0.22f) hueClassification = 2; // YELLOW
-        else if (h >= 0.22f && h < 0.45f) hueClassification = 5; // GREEN
-        else if (h >= 0.45f && h <= 0.90f) hueClassification = 1; // BLUE
-
-        return hueClassification == targetColorID;
     }
 
     void OnBucketFull()

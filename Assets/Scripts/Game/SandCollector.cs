@@ -19,6 +19,12 @@ public class SandCollector : MonoBehaviour
     [Tooltip("Висота над відром, з якої воно може забирати пісок, якщо інший колір заважає йому впасти на саме дно")]
     public int collectionHeight = 5;
 
+    [Tooltip("Кількість пікселів, яка вважається 'шумом' і зливається з найпопулярнішим кольором. Допомагає прибирати артефакти стиснення картинок.")]
+    public int noiseThreshold = 150;
+
+    [Tooltip("Мінімальний розмір 'острівця' стіни. Усі шматки стіни менші за цей розмір будуть видалені. Прибирає сміття у повітрі.")]
+    public int minWallIslandSize = 50;
+
     [Header("Область малюнка (Відступи від країв)")]
     [Tooltip("Зменшує область, в якій генерується пісок з картинки")]
     public int paddingLeft = 0;
@@ -33,6 +39,10 @@ public class SandCollector : MonoBehaviour
     private Color32[,] cellColors;
     private Texture2D texture;
     private Color32[] colorBuffer;
+
+    [HideInInspector]
+    public System.Collections.Generic.List<Bucket> activeBucketsList = new System.Collections.Generic.List<Bucket>();
+    private ConveyorManager cachedConveyor;
 
     // Лічильники для кожного кольору
     private int currentBlueSandCount;
@@ -97,6 +107,7 @@ public class SandCollector : MonoBehaviour
     {
         Instance = this;
         isLevelCompleted = false;
+        cachedConveyor = FindFirstObjectByType<ConveyorManager>();
 
         grid = new int[width, height];
         cellColors = new Color32[width, height];
@@ -189,6 +200,63 @@ public class SandCollector : MonoBehaviour
     {
         grid[x, y] = EMPTY;
         cellColors[x, y] = COLOR_EMPTY;
+    }
+
+    private void RemoveSmallWallIslands(int minSize)
+    {
+        bool[,] visited = new bool[width, height];
+        System.Collections.Generic.List<Vector2Int> currentIsland = new System.Collections.Generic.List<Vector2Int>();
+        System.Collections.Generic.Queue<Vector2Int> queue = new System.Collections.Generic.Queue<Vector2Int>();
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (grid[x, y] == WALL && !visited[x, y])
+                {
+                    currentIsland.Clear();
+                    queue.Clear();
+                    
+                    queue.Enqueue(new Vector2Int(x, y));
+                    visited[x, y] = true;
+
+                    while (queue.Count > 0)
+                    {
+                        Vector2Int p = queue.Dequeue();
+                        currentIsland.Add(p);
+
+                        Vector2Int[] neighbors = {
+                            new Vector2Int(p.x + 1, p.y),
+                            new Vector2Int(p.x - 1, p.y),
+                            new Vector2Int(p.x, p.y + 1),
+                            new Vector2Int(p.x, p.y - 1)
+                        };
+
+                        foreach (var n in neighbors)
+                        {
+                            if (n.x >= 0 && n.x < width && n.y >= 0 && n.y < height)
+                            {
+                                if (grid[n.x, n.y] == WALL && !visited[n.x, n.y])
+                                {
+                                    visited[n.x, n.y] = true;
+                                    queue.Enqueue(n);
+                                }
+                            }
+                        }
+                    }
+
+                    // Якщо острівець стіни замалий - перетворюємо його на повітря (EMPTY)
+                    if (currentIsland.Count < minSize)
+                    {
+                        foreach (var p in currentIsland)
+                        {
+                            grid[p.x, p.y] = EMPTY;
+                            cellColors[p.x, p.y] = COLOR_EMPTY;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Створюємо бортики та засипаємо пісок всередину (стандартний рівень без картинки)
@@ -356,7 +424,7 @@ public class SandCollector : MonoBehaviour
         }
 
         texture.SetPixels32(colorBuffer);
-        texture.Apply();
+        texture.Apply(false); // ВАЖЛИВО ДЛЯ ОПТИМІЗАЦІЇ: false вимикає генерацію Mipmaps, що суттєво розвантажує GPU
     }
 
     Bucket GetBucketAtGridX(int x)
@@ -365,8 +433,7 @@ public class SandCollector : MonoBehaviour
         float spriteWorldWidth = bounds.size.x;
         float worldX = bounds.min.x + ((float)x / width) * spriteWorldWidth;
 
-        Bucket[] buckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
-        foreach (Bucket bucket in buckets)
+        foreach (Bucket bucket in activeBucketsList)
         {
             Collider2D bucketCollider = bucket.GetComponent<Collider2D>();
             if (bucketCollider != null)
@@ -441,15 +508,17 @@ public class SandCollector : MonoBehaviour
 
     private void CheckLoseCondition()
     {
-        var conveyor = FindFirstObjectByType<ConveyorManager>();
-        if (conveyor == null) return;
+        if (cachedConveyor == null)
+            cachedConveyor = FindFirstObjectByType<ConveyorManager>();
+            
+        if (cachedConveyor == null) return;
 
-        Bucket[] activeBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
-        bool hasAnyActiveBucket = activeBuckets != null && activeBuckets.Length > 0;
-        bool hasFreeSlot = activeBuckets.Length < conveyor.maxActiveBuckets;
+        bool hasAnyActiveBucket = activeBucketsList.Count > 0;
+        bool hasFreeSlot = activeBucketsList.Count < cachedConveyor.maxActiveBuckets;
         bool hasFullBucket = false;
+        bool isAnyBucketFilling = false;
 
-        foreach (var bucket in activeBuckets)
+        foreach (var bucket in activeBucketsList)
         {
             if (bucket == null)
                 continue;
@@ -459,6 +528,10 @@ public class SandCollector : MonoBehaviour
                 hasFullBucket = true;
                 break;
             }
+            if (Time.time - bucket.lastSandTime < 1.0f)
+            {
+                isAnyBucketFilling = true;
+            }
         }
 
         if (!hasAnyActiveBucket)
@@ -467,7 +540,7 @@ public class SandCollector : MonoBehaviour
             return;
         }
 
-        if (hasFreeSlot || hasFullBucket)
+        if (hasFreeSlot || hasFullBucket || isAnyBucketFilling)
         {
             ResetLoseTimer();
             return;
@@ -734,7 +807,7 @@ public class SandCollector : MonoBehaviour
             }
         }
 
-        // --- Фільтрація шумів (кольори, яких менше 50 пікселів, замінюються на найпопулярніший) ---
+        // --- Фільтрація шумів (кольори, яких менше noiseThreshold пікселів, замінюються на найпопулярніший) ---
         int maxCount = 0;
         int dominantColor = EMPTY;
         
@@ -760,7 +833,7 @@ public class SandCollector : MonoBehaviour
                 for (int y = 0; y < height; y++)
                 {
                     int cell = grid[x, y];
-                    if (cell != EMPTY && cell != WALL && counts[cell] > 0 && counts[cell] < 50)
+                    if (cell != EMPTY && cell != WALL && counts[cell] > 0 && counts[cell] < noiseThreshold)
                     {
                         // Віднімаємо від шумового
                         switch (cell)
@@ -814,6 +887,8 @@ public class SandCollector : MonoBehaviour
         }
         // -----------------------------------------------------------------------------------------
 
+        RemoveSmallWallIslands(minWallIslandSize);
+
         Debug.Log($"Рівень '{levelTexture.name}' завантажено: " +
                   $"синій={totalBlueSandCount}, жовтий={totalYellowSandCount}, " +
                   $"червоний={totalRedSandCount}, зелений={totalGreenSandCount}, " +
@@ -855,11 +930,11 @@ public class SandCollector : MonoBehaviour
         // Конвертуємо колір у формат HSV (Hue, Saturation, Value)
         Color.RGBToHSV(c, out float h, out float s, out float v);
 
-        // 2. Чорний або дуже темний колір
-        if (v < 0.15f) return BLACK_SAND;
+        // 2. Чорний або дуже темний колір (знижено до 0.05, щоб темні відтінки не ставали чорними)
+        if (v < 0.05f) return BLACK_SAND;
 
-        // 3. Відтінки сірого (низька насиченість)
-        if (s < 0.2f)
+        // 3. Відтінки сірого (низька насиченість) (знижено до 0.1, щоб бліді відтінки кольорів працювали)
+        if (s < 0.1f)
         {
             if (v > 0.72f) return WHITE_SAND; // Світло-сірий або білий
             return WALL; // Середньо-сірий - це стіна
