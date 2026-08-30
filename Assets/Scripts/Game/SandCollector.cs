@@ -39,6 +39,7 @@ public class SandCollector : MonoBehaviour
     private Color32[,] cellColors;
     private Texture2D texture;
     private Color32[] colorBuffer;
+    private bool isDirty = false;
 
     [HideInInspector]
     public System.Collections.Generic.List<Bucket> activeBucketsList = new System.Collections.Generic.List<Bucket>();
@@ -143,7 +144,7 @@ public class SandCollector : MonoBehaviour
 
     private void ClearExistingBucketsAndSpawners()
     {
-        Bucket[] existingBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
+        Bucket[] existingBuckets = Bucket.AllBuckets.ToArray();
         foreach (Bucket bucket in existingBuckets)
         {
             if (bucket != null)
@@ -192,14 +193,21 @@ public class SandCollector : MonoBehaviour
     {
         grid[toX, toY] = grid[fromX, fromY];
         cellColors[toX, toY] = cellColors[fromX, fromY];
+        colorBuffer[toX + toY * width] = cellColors[fromX, fromY];
+
         grid[fromX, fromY] = EMPTY;
         cellColors[fromX, fromY] = COLOR_EMPTY;
+        colorBuffer[fromX + fromY * width] = COLOR_EMPTY;
+
+        isDirty = true;
     }
 
     private void ClearCell(int x, int y)
     {
         grid[x, y] = EMPTY;
         cellColors[x, y] = COLOR_EMPTY;
+        colorBuffer[x + y * width] = COLOR_EMPTY;
+        isDirty = true;
     }
 
     private void RemoveSmallWallIslands(int minSize)
@@ -257,6 +265,7 @@ public class SandCollector : MonoBehaviour
                 }
             }
         }
+        ForceFullDrawGrid();
     }
 
     // Створюємо бортики та засипаємо пісок всередину (стандартний рівень без картинки)
@@ -307,10 +316,52 @@ public class SandCollector : MonoBehaviour
 
         isGameOver = false;
         ResetLoseTimer();
+        ForceFullDrawGrid();
     }
+
+    private struct CachedBucketBounds
+    {
+        public Bucket bucket;
+        public int minGridX;
+        public int maxGridX;
+    }
+
+    private System.Collections.Generic.List<CachedBucketBounds> currentBucketBounds = new System.Collections.Generic.List<CachedBucketBounds>();
+    private float cachedSpriteWorldWidth;
+    private float cachedSpriteWorldMinX;
 
     void UpdateSandPhysics()
     {
+        if (displayRenderer != null)
+        {
+            Bounds dispBounds = displayRenderer.bounds;
+            cachedSpriteWorldWidth = dispBounds.size.x;
+            cachedSpriteWorldMinX = dispBounds.min.x;
+        }
+
+        currentBucketBounds.Clear();
+        foreach (var bucket in activeBucketsList)
+        {
+            if (bucket == null) continue;
+            Collider2D col = bucket.GetComponent<Collider2D>();
+            float minX, maxX;
+            if (col != null)
+            {
+                minX = col.bounds.min.x;
+                maxX = col.bounds.max.x;
+            }
+            else
+            {
+                minX = bucket.transform.position.x - 0.5f;
+                maxX = bucket.transform.position.x + 0.5f;
+            }
+            
+            int minGridX = Mathf.RoundToInt((minX - cachedSpriteWorldMinX) / cachedSpriteWorldWidth * width);
+            int maxGridX = Mathf.RoundToInt((maxX - cachedSpriteWorldMinX) / cachedSpriteWorldWidth * width);
+            
+            currentBucketBounds.Add(new CachedBucketBounds { bucket = bucket, minGridX = minGridX, maxGridX = maxGridX });
+        }
+
         // Обробляємо y=0 окремо — пісок на самому дні збирається відерцями
         for (int x = 0; x < width; x++)
         {
@@ -324,12 +375,10 @@ public class SandCollector : MonoBehaviour
                 {
                     if (SandVisuals.Instance != null)
                     {
-                        Bounds bounds = displayRenderer.bounds;
-                        float spriteWorldWidth = bounds.size.x;
-                        float worldX = bounds.min.x + ((float)x / width) * spriteWorldWidth;
-                        float worldY = bounds.min.y;
+                        float worldX = cachedSpriteWorldMinX + ((float)x / width) * cachedSpriteWorldWidth;
+                        float worldY = displayRenderer.bounds.min.y;
                         Vector3 startPos = new Vector3(worldX, worldY, displayRenderer.transform.position.z - 0.1f);
-                        float visualScale = (spriteWorldWidth / width) * 100f;
+                        float visualScale = (cachedSpriteWorldWidth / width) * 100f;
                         SandVisuals.Instance.SpawnFlyingSand(startPos, bucketAtPos.transform, cellColors[x, 0], visualScale);
                     }
 
@@ -388,13 +437,11 @@ public class SandCollector : MonoBehaviour
                         {
                             if (SandVisuals.Instance != null)
                             {
-                                Bounds bounds = displayRenderer.bounds;
-                                float spriteWorldWidth = bounds.size.x;
-                                float spriteWorldHeight = bounds.size.y;
-                                float worldX = bounds.min.x + ((float)x / width) * spriteWorldWidth;
-                                float worldY = bounds.min.y + ((float)y / height) * spriteWorldHeight;
+                                float spriteWorldHeight = displayRenderer.bounds.size.y;
+                                float worldX = cachedSpriteWorldMinX + ((float)x / width) * cachedSpriteWorldWidth;
+                                float worldY = displayRenderer.bounds.min.y + ((float)y / height) * spriteWorldHeight;
                                 Vector3 startPos = new Vector3(worldX, worldY, displayRenderer.transform.position.z - 0.1f);
-                                float visualScale = (spriteWorldWidth / width) * 100f;
+                                float visualScale = (cachedSpriteWorldWidth / width) * 100f;
                                 SandVisuals.Instance.SpawnFlyingSand(startPos, bucketAtPos.transform, cellColors[x, y], visualScale);
                             }
 
@@ -414,6 +461,15 @@ public class SandCollector : MonoBehaviour
 
     void DrawGrid()
     {
+        if (!isDirty) return;
+
+        texture.SetPixels32(colorBuffer);
+        texture.Apply(false); // ВАЖЛИВО ДЛЯ ОПТИМІЗАЦІЇ: false вимикає генерацію Mipmaps, що суттєво розвантажує GPU
+        isDirty = false;
+    }
+
+    public void ForceFullDrawGrid()
+    {
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -422,43 +478,35 @@ public class SandCollector : MonoBehaviour
                 colorBuffer[pixelIndex] = cellColors[x, y];
             }
         }
-
-        texture.SetPixels32(colorBuffer);
-        texture.Apply(false); // ВАЖЛИВО ДЛЯ ОПТИМІЗАЦІЇ: false вимикає генерацію Mipmaps, що суттєво розвантажує GPU
+        isDirty = true;
+        DrawGrid();
     }
 
     Bucket GetBucketAtGridX(int x)
     {
-        Bounds bounds = displayRenderer.bounds;
-        float spriteWorldWidth = bounds.size.x;
-        float worldX = bounds.min.x + ((float)x / width) * spriteWorldWidth;
-
-        foreach (Bucket bucket in activeBucketsList)
+        foreach (var bb in currentBucketBounds)
         {
-            Collider2D bucketCollider = bucket.GetComponent<Collider2D>();
-            if (bucketCollider != null)
-            {
-                if (worldX >= bucketCollider.bounds.min.x && worldX <= bucketCollider.bounds.max.x)
-                    return bucket;
-            }
-            else
-            {
-                if (Mathf.Abs(bucket.transform.position.x - worldX) < 0.5f)
-                    return bucket;
-            }
+            if (x >= bb.minGridX && x <= bb.maxGridX)
+                return bb.bucket;
         }
         return null;
     }
 
     private bool IsSand(int cellType)
     {
-        return cellType == BLUE_SAND   ||
-               cellType == YELLOW_SAND ||
-               cellType == RED_SAND    ||
-               cellType == GREEN_SAND  ||
-               cellType == ORANGE_SAND ||
-               cellType == WHITE_SAND  ||
-               cellType == BLACK_SAND;
+        switch (cellType)
+        {
+            case BLUE_SAND:
+            case YELLOW_SAND:
+            case RED_SAND:
+            case GREEN_SAND:
+            case ORANGE_SAND:
+            case WHITE_SAND:
+            case BLACK_SAND:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private void DecrementSandCount(int colorID)
@@ -621,7 +669,7 @@ public class SandCollector : MonoBehaviour
         }
 
         // Вимикаємо відра на конвеєрі
-        Bucket[] activeBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
+        Bucket[] activeBuckets = Bucket.AllBuckets.ToArray();
         foreach (Bucket bucket in activeBuckets)
         {
             if (bucket != null)
@@ -719,7 +767,7 @@ public class SandCollector : MonoBehaviour
             }
         }
 
-        Bucket[] activeBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
+        Bucket[] activeBuckets = Bucket.AllBuckets.ToArray();
         foreach (Bucket bucket in activeBuckets)
         {
             if (bucket != null)

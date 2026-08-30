@@ -6,6 +6,8 @@ using UnityEngine.Events;
 
 public class LostPanelController : MonoBehaviour
 {
+    public static LevelPlayAdsManager Instance;
+
     [Header("Health UI")]
     [SerializeField] private GameObject notEnoughLivesPanel;
 
@@ -85,10 +87,41 @@ public class LostPanelController : MonoBehaviour
 
     public void Plus80Coins()
     {
-        Time.timeScale = 1f;
-        GameStats.AddCoins(80);
-        RefreshCoinDisplay();
-        SceneManager.LoadScene("Menu");
+        if (LevelPlayAdsManager.Instance.IsRewardedReady())
+        {
+            // Для того щоб тестова реклама Unity LevelPlay в Editor не зависала,
+            // знімаємо паузу перед показом реклами.
+            Time.timeScale = 1f;
+
+            bool gotReward = false;
+            LevelPlayAdsManager.Instance.ShowRewardedAd(
+                onSuccess: () => 
+                {
+                    gotReward = true;
+                    GameStats.AddCoins(80);
+                },
+                onClosed: () =>
+                {
+                    if (!gotReward)
+                    {
+                        GameStats.AddCoins(40);
+                    }
+                    
+                    // Оновлюємо UI лише якщо об'єкт ще існує
+                    if (this != null && this.gameObject != null)
+                    {
+                        RefreshCoinDisplay();
+                    }
+
+                    SceneManager.LoadScene("Menu");
+                }
+            );
+        }
+        else
+        {
+            Debug.Log("Rewarded ad not ready, giving standard 40 coins instead.");
+            Plus40Coins();
+        }
     }
 
     private void RefreshCoinDisplay()
@@ -114,3 +147,4 @@ public class LostPanelController : MonoBehaviour
         }
     }
 }
+

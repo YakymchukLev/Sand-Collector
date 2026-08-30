@@ -38,6 +38,18 @@ public class Bucket : MonoBehaviour
     private bool isFull = false;
     private bool isGameOverDisabled = false;
 
+    public static readonly System.Collections.Generic.List<Bucket> AllBuckets = new System.Collections.Generic.List<Bucket>();
+
+    void Awake()
+    {
+        AllBuckets.Add(this);
+    }
+
+    void OnDestroy()
+    {
+        AllBuckets.Remove(this);
+    }
+
     void Start()
     {
         transform.localScale = Vector3.zero;
@@ -90,10 +102,9 @@ public class Bucket : MonoBehaviour
 
     private bool IsBucketTooCloseAhead(Vector3 targetPosition)
     {
-        Bucket[] buckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
-        foreach (Bucket bucket in buckets)
+        foreach (Bucket bucket in AllBuckets)
         {
-            if (bucket == this) continue;
+            if (bucket == null || bucket == this) continue;
             if (bucket.transform.position.x >= transform.position.x) continue;
 
             float deltaX = transform.position.x - bucket.transform.position.x;
@@ -149,19 +160,9 @@ public class Bucket : MonoBehaviour
 
         isGameOverDisabled = true;
         CancelInvoke();
-        enabled = false;
-
-        Collider2D collider = GetComponent<Collider2D>();
-        if (collider != null)
-        {
-            collider.enabled = false;
-        }
-
-        SpriteRenderer sr = GetBucketSpriteRenderer();
-        if (sr != null)
-        {
-            sr.enabled = false;
-        }
+        
+        // Повністю деактивуємо об'єкт відра, щоб приховати всі спрайти та тексти одразу
+        gameObject.SetActive(false);
     }
 
     public void RemoveFromScene(bool immediate = false)

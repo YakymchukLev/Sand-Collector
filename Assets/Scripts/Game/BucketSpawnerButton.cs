@@ -29,6 +29,48 @@ public class BucketSpawnerButton : MonoBehaviour
     private bool isGameOverDisabled = false;
     private SpriteRenderer[] buttonSpriteRenderers;
     private Collider2D buttonCollider;
+    private bool isJellyAnimating = false;
+
+    private System.Collections.IEnumerator JellyRoutine()
+    {
+        isJellyAnimating = true;
+        
+        float duration = 0.25f;
+        float elapsed = 0f;
+        
+        Vector3 startScale = transform.localScale;
+        Vector3 squashScale = new Vector3(originalScale.x * 1.25f, originalScale.y * 0.75f, originalScale.z);
+        Vector3 stretchScale = new Vector3(originalScale.x * 0.85f, originalScale.y * 1.15f, originalScale.z);
+        
+        while (elapsed < duration * 0.33f)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / (duration * 0.33f);
+            transform.localScale = Vector3.Lerp(startScale, squashScale, t);
+            yield return null;
+        }
+        
+        elapsed = 0f;
+        while (elapsed < duration * 0.33f)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / (duration * 0.33f);
+            transform.localScale = Vector3.Lerp(squashScale, stretchScale, t);
+            yield return null;
+        }
+        
+        elapsed = 0f;
+        while (elapsed < duration * 0.33f)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / (duration * 0.33f);
+            transform.localScale = Vector3.Lerp(stretchScale, targetScale, t);
+            yield return null;
+        }
+        
+        transform.localScale = targetScale;
+        isJellyAnimating = false;
+    }
 
     void Start()
     {
@@ -71,8 +113,11 @@ public class BucketSpawnerButton : MonoBehaviour
 
     void Update()
     {
-        // Плавна анімація зміни розміру (Lerp)
-        transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * animationSpeed);
+        if (!isJellyAnimating)
+        {
+            // Плавна анімація зміни розміру (Lerp)
+            transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * animationSpeed);
+        }
 
         bool isColorInLevel = IsColorAvailableInLevel();
         bool shouldBeActive = isColorInLevel && !isDisabled && !isGameOverDisabled;
@@ -82,7 +127,7 @@ public class BucketSpawnerButton : MonoBehaviour
             foreach (var renderer in buttonSpriteRenderers)
             {
                 if (renderer == null) continue;
-                renderer.enabled = shouldBeActive;
+                renderer.enabled = isColorInLevel && !isGameOverDisabled;
             }
         }
 
@@ -91,10 +136,7 @@ public class BucketSpawnerButton : MonoBehaviour
             buttonCollider.enabled = shouldBeActive;
         }
 
-        if (shouldBeActive)
-        {
-            ApplyButtonColor();
-        }
+        ApplyButtonColor();
     }
 
     private void OnMouseEnter()
@@ -112,7 +154,9 @@ public class BucketSpawnerButton : MonoBehaviour
         if (isDisabled || isGameOverDisabled || !IsColorAvailableInLevel())
             return;
 
-        targetScale = originalScale * clickScaleMultiplier;
+        targetScale = originalScale;
+        StopAllCoroutines();
+        StartCoroutine(JellyRoutine());
         
         bool spawned = false;
         if (conveyorManager != null)
@@ -159,14 +203,6 @@ public class BucketSpawnerButton : MonoBehaviour
     private void DisableButtonTemporarily()
     {
         isDisabled = true;
-        if (buttonSpriteRenderers != null)
-        {
-            foreach (var renderer in buttonSpriteRenderers)
-            {
-                if (renderer != null)
-                    renderer.enabled = false;
-            }
-        }
         if (buttonCollider != null)
             buttonCollider.enabled = false;
 
@@ -176,6 +212,7 @@ public class BucketSpawnerButton : MonoBehaviour
         {
             Invoke(nameof(EnableButton), disableDuration);
         }
+        ApplyButtonColor();
     }
 
     public void DisableForGameOver()
@@ -216,6 +253,8 @@ public class BucketSpawnerButton : MonoBehaviour
         }
         if (buttonCollider != null)
             buttonCollider.enabled = IsColorAvailableInLevel();
+        
+        ApplyButtonColor();
     }
 
     public void ResetState()
@@ -238,12 +277,19 @@ public class BucketSpawnerButton : MonoBehaviour
         if (buttonSpriteRenderers == null)
             return;
 
-        // Якщо користувач призначив свій спрайт, вимикаємо автоматичне перефарбовування,
-        // щоб не зіпсувати оригінальні кольори кастомної картинки.
-        if (customButtonSprite != null)
-            return;
-
         Color tintColor = GetColorForBucketID(bucketColorID);
+        
+        if (isDisabled)
+        {
+            // Затемнюємо кнопку під час кулдауну, щоб було видно ефект, але вона виглядала неактивною
+            tintColor = new Color(tintColor.r * 0.5f, tintColor.g * 0.5f, tintColor.b * 0.5f, 0.7f);
+        }
+
+        if (customButtonSprite != null)
+        {
+            tintColor = isDisabled ? new Color(0.5f, 0.5f, 0.5f, 0.7f) : Color.white;
+        }
+
         foreach (var renderer in buttonSpriteRenderers)
         {
             if (renderer != null)

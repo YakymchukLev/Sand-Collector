@@ -17,7 +17,7 @@ public class BucketCount : MonoBehaviour
     {
         if (countText != null && conveyor != null)
         {
-            int currentBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None).Length;
+            int currentBuckets = Bucket.AllBuckets.Count;
             countText.text = $"{currentBuckets}/{conveyor.maxActiveBuckets}";
         }
     }

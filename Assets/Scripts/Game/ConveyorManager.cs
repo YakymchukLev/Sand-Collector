@@ -18,6 +18,15 @@ public class ConveyorManager : MonoBehaviour
         maxActiveBuckets = Mathf.Max(4, maxActiveBuckets);
     }
 
+    private struct SpawnRequest
+    {
+        public int colorID;
+        public Sprite customSprite;
+        public int customCapacity;
+    }
+
+    private System.Collections.Generic.Queue<SpawnRequest> spawnQueue = new System.Collections.Generic.Queue<SpawnRequest>();
+
     void Start()
     {
         minDistanceBetweenBuckets = 1.5f; // Обмежуємо відстань кодом, щоб оминути застаріле значення в сцені
@@ -30,10 +39,39 @@ public class ConveyorManager : MonoBehaviour
             Debug.LogError("[ConveyorManager] spawnPoint не задано. Встановіть точку спавну в інспекторі.", this);
         }
 
+        StartCoroutine(ProcessSpawnQueue());
+
         if (autoSpawn)
         {
             // Запускаємо регулярний спавн відерець
             InvokeRepeating(nameof(SpawnBucket), 0f, spawnInterval);
+        }
+    }
+
+    private System.Collections.IEnumerator ProcessSpawnQueue()
+    {
+        while (true)
+        {
+            if (spawnQueue.Count > 0)
+            {
+                bool isBlocked = false;
+                
+                foreach (Bucket b in Bucket.AllBuckets)
+                {
+                    if (Vector3.Distance(b.transform.position, spawnPoint.position) < minDistanceBetweenBuckets)
+                    {
+                        isBlocked = true;
+                        break;
+                    }
+                }
+
+                if (!isBlocked)
+                {
+                    SpawnRequest req = spawnQueue.Dequeue();
+                    ExecuteSpawn(req.colorID, req.customSprite, req.customCapacity);
+                }
+            }
+            yield return null;
         }
     }
 
@@ -45,6 +83,7 @@ public class ConveyorManager : MonoBehaviour
     public void StopSpawning()
     {
         CancelInvoke(nameof(SpawnBucket));
+        spawnQueue.Clear();
     }
 
     public void SpawnBucket()
@@ -81,40 +120,42 @@ public class ConveyorManager : MonoBehaviour
             }
         }
 
-        // Перевірка кількості активних відер на сцені
-        Bucket[] activeBuckets = FindObjectsByType<Bucket>(FindObjectsSortMode.None);
-        if (activeBuckets.Length >= maxActiveBuckets)
+        // Перевірка кількості активних відер на сцені та в черзі
+        if (Bucket.AllBuckets.Count + spawnQueue.Count >= maxActiveBuckets)
         {
             ShowTooManyBucketsWarning();
             return false;
         }
 
-        // Перевірка відстані до найближчого відерця від точки спавну
-        foreach (Bucket b in activeBuckets)
-        {
-            if (Vector3.Distance(b.transform.position, spawnPoint.position) < minDistanceBetweenBuckets)
-            {
-                return false; // Якщо якесь відерце занадто близько до точки спавну, не спавнимо
-            }
-        }
+        spawnQueue.Enqueue(new SpawnRequest 
+        { 
+            colorID = colorID, 
+            customSprite = customSprite, 
+            customCapacity = customCapacity 
+        });
 
+        return true;
+    }
+
+    private void ExecuteSpawn(int colorID, Sprite customSprite, int customCapacity)
+    {
         if (bucketPrefab == null)
         {
             Debug.LogError("[ConveyorManager] Неможливо спавнити відро: bucketPrefab не задано.");
-            return false;
+            return;
         }
 
         if (spawnPoint == null)
         {
             Debug.LogError("[ConveyorManager] Неможливо спавнити відро: spawnPoint не задано.");
-            return false;
+            return;
         }
 
         GameObject newBucket = Instantiate(bucketPrefab, spawnPoint.position, Quaternion.identity);
         if (newBucket == null)
         {
             Debug.LogError("[ConveyorManager] Не вдалося створити екземпляр bucketPrefab.");
-            return false;
+            return;
         }
 
         // Задаємо колір для нового відерця
@@ -123,12 +164,10 @@ public class ConveyorManager : MonoBehaviour
         {
             Debug.LogError("[ConveyorManager] Префаб відра не містить компонент Bucket.", newBucket);
             Destroy(newBucket);
-            return false;
+            return;
         }
 
         bucketScript.SetTargetColorID(colorID, false, customSprite, customCapacity);
-
-        return true;
     }
 
     private void ShowTooManyBucketsWarning()

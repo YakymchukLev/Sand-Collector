@@ -100,4 +100,14 @@ public class MenuButtonsManager : MonoBehaviour
     {
         shopPanel.SetActive(false);
     }
+
+    public void OpenSlots(GameObject slotsPanel)
+    {
+        slotsPanel.SetActive(true);
+    }
+
+    public void CloseSlots(GameObject slotsPanel)
+    {
+        slotsPanel.SetActive(false);
+    }
 }
